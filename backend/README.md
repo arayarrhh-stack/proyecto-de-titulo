@@ -32,6 +32,7 @@ Para detenerla, pulsa `Ctrl+C`. Después de modificar el código, vuelve a inici
 | Método | Ruta | Resultado |
 | --- | --- | --- |
 | GET | `/api/catalogo/productos/` | Lista paginada de productos. |
+| GET | `/api/catalogo/productos/?busqueda=guante` | Busca por parte del nombre o del código. |
 | GET | `/api/catalogo/productos/{id}/` | Detalle del producto indicado. |
 
 Las consultas son públicas, de solo lectura y responden en JSON. Cada producto incluye `id`, `codigo`, `nombre` y `descripcion`.
@@ -42,11 +43,23 @@ Solo se muestran registros con `activo=True` y `estado_validacion="validada"`. L
 
 El estado de validación se almacena como dato; este módulo no realiza una revisión técnica de la ficha. Las respuestas públicas no incluyen precios, costos ni márgenes.
 
+## Búsqueda por nombre o código (HU-17)
+
+El parámetro `busqueda` compara el texto completo con cualquier parte del nombre o del código interno. Por ejemplo, `?busqueda=guante` busca ese texto en ambos campos y `?busqueda=GUA-01` permite buscar por código. La descripción no interviene en la búsqueda.
+
+Se quitan los espacios al principio y al final. Si el parámetro se omite, está vacío o solo tiene espacios, se devuelve el catálogo publicado. Si no hay coincidencias, la respuesta conserva el formato paginado con `count: 0` y `results: []`.
+
+La consulta usa `icontains` de Django. Con SQLite no distingue mayúsculas ASCII (`GUA` y `gua`), pero no elimina tildes ni garantiza equivalencia entre mayúsculas y minúsculas acentuadas. El buscador de la interfaz en `testing` sí elimina tildes; ambas búsquedas tienen esa diferencia.
+
+La búsqueda mantiene las reglas de publicación y las 24 entradas por página. Para avanzar se usa el enlace `next`, que conserva el texto buscado, o `?busqueda=guante&page=2`. El parámetro no modifica la consulta de detalle por id.
+
+`Catalogo.jsx` en `testing` trabaja con productos de ejemplo. La conexión con esta API usará `busqueda` y los campos `count`, `next`, `previous` y `results` de la respuesta. Esta entrega cubre la búsqueda del backend; el filtro por categoría y el mensaje de la interfaz con acceso al asistente y al contacto completarán los demás criterios de HU-17.
+
 ## Organización del módulo
 
 - `catalogo/models.py`: datos del producto y estados de publicación.
 - `catalogo/serializers.py`: campos incluidos en las respuestas.
-- `catalogo/views.py`: consultas y filtro de productos publicados.
+- `catalogo/views.py`: consultas, filtro de productos publicados y búsqueda por nombre o código.
 - `catalogo/urls.py`: direcciones de la API.
 - `catalogo/migrations/`: estructura de las tablas.
 
