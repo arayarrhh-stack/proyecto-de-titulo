@@ -1,0 +1,33 @@
+# Credenciales y configuración privada de cada computador.
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Entornos de Python y archivos que genera al ejecutar código.
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.sqlite3
+*.sqlite3-journal
+
+# Dependencias y resultados de compilación del frontend.
+node_modules/
+dist/
+build/
+
+# Archivos temporales del sistema operativo y registros locales.
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.log
+
+# Temporales de trabajo y del editor.
+tmp/
+temp/
+temps/
+*.tmp
+*.temp
+*~
