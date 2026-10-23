@@ -4,14 +4,24 @@ from pathlib import Path
 from django.core.management.utils import get_random_secret_key
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
 # En local se genera una clave temporal; una clave estable se entrega por entorno.
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY") or get_random_secret_key()
 DEBUG = os.environ.get("DJANGO_DEBUG", "0") == "1"
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "testserver"]
+
 INSTALLED_APPS = [
-    "django.contrib.auth", "django.contrib.contenttypes",
-    "django.contrib.sessions", "rest_framework", "catalogo",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "rest_framework",
+    # Aplicaciones locales de ACOMSE
+    "catalogo",
+    "usuarios",
+    "cotizaciones",
+    "asistente_ia",
 ]
+
 # Django gestiona sesiones, autenticación y protección CSRF para futuras pantallas.
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -20,16 +30,23 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
 ]
+
 ROOT_URLCONF = "configuracion.urls"
 WSGI_APPLICATION = "configuracion.wsgi.application"
+
 # SQLite permite comenzar en local sin instalar un servidor de base de datos.
-DATABASES = {"default": {
-    "ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3",
-}}
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
+    }
+}
+
 LANGUAGE_CODE = "es-cl"
 TIME_ZONE = "America/Santiago"
 USE_TZ = True
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
 # Cada API debe declarar su acceso público; las demás requieren autenticación.
 REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
