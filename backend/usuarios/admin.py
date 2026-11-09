@@ -1,3 +1,4 @@
-from django.contrib import admin
+"""Configuración administrativa del módulo de usuarios y control de acceso (M1)."""
 
-# Register your models here.
+# La administración de identidades, roles y solicitudes de supresión de datos
+# se opera a través de los servicios REST y el panel seguro para administración.
