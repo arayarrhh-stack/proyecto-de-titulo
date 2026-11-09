@@ -20,6 +20,7 @@ INSTALLED_APPS = [
     "usuarios",
     "cotizaciones",
     "asistente_ia",
+    "utils",
 ]
 
 # M1 (HU-01, HU-03): Modelo de usuario corporativo con control de acceso por roles.

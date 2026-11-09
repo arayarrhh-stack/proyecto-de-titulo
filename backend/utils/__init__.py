@@ -1,0 +1,1 @@
+"""Paquete de utilidades transversales, auditoría, notificaciones y analítica (M8)."""
