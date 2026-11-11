@@ -50,5 +50,12 @@ class PerfilUsuarioSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "username", "email", "first_name", "cargo", "empresa", "correo_verificado"]
-        read_only_fields = ["username", "email", "correo_verificado"]
+        fields = ["id", "username", "email", "first_name", "cargo", "empresa", "correo_verificado", "rol"]
+        read_only_fields = ["username", "email", "correo_verificado", "rol"]
+
+
+class LoginSerializer(serializers.Serializer):
+    """Valida las credenciales de inicio de sesión (correo y contraseña)."""
+
+    correo = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
