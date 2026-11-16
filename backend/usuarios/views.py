@@ -7,6 +7,9 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.throttling import UserRateThrottle
+
+from .verificacion import enviar_correo_verificacion, usuario_desde_token
 
 from .serializers import LoginSerializer, PerfilUsuarioSerializer, RegistroClienteSerializer
 from .services import anonimizar_cuenta_usuario, registrar_empresa_y_usuario
@@ -29,11 +32,14 @@ class RegistroClienteView(APIView):
         try:
             usuario = registrar_empresa_y_usuario(serializer.validated_data)
         except (ValidationError, ValueError) as exc:
-            return Response({"detalle": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+            mensaje = " ".join(getattr(exc, "messages", [str(exc)]))
+            return Response({"detalle": mensaje}, status=status.HTTP_400_BAD_REQUEST)
+
+        enviar_correo_verificacion(usuario)
 
         return Response(
             {
-                "mensaje": "Registro exitoso. Se ha enviado un correo de verificación.",
+                "mensaje": "Registro exitoso. Te enviamos un correo para activar tu cuenta.",
                 "correo": usuario.email,
             },
             status=status.HTTP_201_CREATED,
@@ -109,3 +115,46 @@ class LogoutView(APIView):
     def post(self, request):
         logout(request)
         return Response({"mensaje": "Sesión cerrada."}, status=status.HTTP_200_OK)
+
+
+
+class VerificarCorreoView(APIView):
+    """Activa la cuenta con el enlace enviado por correo (HU-02, RF-02)."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        try:
+            usuario = usuario_desde_token(request.data.get("token", ""))
+        except ValueError as exc:
+            return Response({"detalle": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not usuario.correo_verificado:
+            usuario.correo_verificado = True
+            usuario.save(update_fields=["correo_verificado"])
+        return Response(
+            {"mensaje": "Tu cuenta fue activada. Ya puedes iniciar sesión."},
+            status=status.HTTP_200_OK,
+        )
+
+
+class LimiteReenvioThrottle(UserRateThrottle):
+    """Evita el abuso del reenvío del correo de activación."""
+
+    rate = "5/hour"
+
+
+class ReenviarVerificacionView(APIView):
+    """Reenvía el enlace de activación a la persona con sesión iniciada (HU-02)."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [LimiteReenvioThrottle]
+
+    def post(self, request):
+        if request.user.correo_verificado:
+            return Response({"mensaje": "Tu cuenta ya está activada."}, status=status.HTTP_200_OK)
+        enviar_correo_verificacion(request.user)
+        return Response(
+            {"mensaje": "Te enviamos un nuevo enlace de activación."}, status=status.HTTP_200_OK
+        )
