@@ -35,9 +35,12 @@ class LineaSolicitudSerializer(serializers.ModelSerializer):
 
 
 class SolicitudSerializer(serializers.ModelSerializer):
-    """Solicitud de cotización con sus líneas y estado actual (HU-20, HU-39)."""
+    """Solicitud de cotización con sus líneas, estado actual y datos del cliente (HU-20, HU-39)."""
 
     lineas = LineaSolicitudSerializer(many=True, read_only=True)
+    cliente_nombre = serializers.CharField(source="cliente.first_name", read_only=True)
+    cliente_correo = serializers.EmailField(source="cliente.email", read_only=True)
+    empresa_nombre = serializers.SerializerMethodField()
 
     class Meta:
         model = Solicitud
@@ -49,10 +52,16 @@ class SolicitudSerializer(serializers.ModelSerializer):
             "observaciones",
             "creado_en",
             "actualizado_en",
+            "cliente_nombre",
+            "cliente_correo",
+            "empresa_nombre",
             "lineas",
         ]
         read_only_fields = ["folio", "estado", "creado_en", "actualizado_en"]
 
+    def get_empresa_nombre(self, obj):
+        empresa = obj.cliente.empresa
+        return empresa.razon_social if empresa else ""
 
 # --- SERIALIZADORES EXCLUSIVOS PARA CLIENTE (Ocultan costos y márgenes: RNF-04) ---
 

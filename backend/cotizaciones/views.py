@@ -49,9 +49,9 @@ class SolicitudListCreateView(APIView):
     def get(self, request):
         """RNF-07: cada cliente visualiza únicamente sus propias solicitudes."""
         if _es_administradora(request.user):
-            queryset = Solicitud.objects.prefetch_related("lineas__producto").all()
+            queryset = Solicitud.objects.select_related("cliente__empresa").prefetch_related("lineas__producto").all()
         else:
-            queryset = Solicitud.objects.prefetch_related("lineas__producto").filter(
+            queryset = Solicitud.objects.select_related("cliente__empresa").prefetch_related("lineas__producto").filter(
                 cliente=request.user
             )
         serializer = SolicitudSerializer(queryset, many=True)
@@ -81,7 +81,16 @@ class CotizacionProveedorCreateView(APIView):
     """Registra la cotización recibida del proveedor; exclusivo para administración (HU-23, RF-31)."""
 
     permission_classes = [IsAdminUser]
-
+    
+    def get(self, request):
+        """Lista las cotizaciones de proveedor de una solicitud (?solicitud_id=); solo administración."""
+        solicitud_id = request.query_params.get("solicitud_id", "").strip()
+        queryset = CotizacionProveedor.objects.prefetch_related("lineas_costo")
+        if solicitud_id.isdigit():
+            queryset = queryset.filter(solicitud_id=int(solicitud_id))
+        serializer = CotizacionProveedorAdminSerializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
     def post(self, request):
         """Asocia los costos unitarios netos del proveedor a una solicitud."""
         solicitud = get_object_or_404(Solicitud, id=request.data.get("solicitud_id"))
