@@ -7,8 +7,7 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.throttling import UserRateThrottle
-
+from rest_framework.throttling import SimpleRateThrottle
 from .verificacion import enviar_correo_verificacion, usuario_desde_token
 
 from .serializers import LoginSerializer, PerfilUsuarioSerializer, RegistroClienteSerializer
@@ -139,22 +138,34 @@ class VerificarCorreoView(APIView):
         )
 
 
-class LimiteReenvioThrottle(UserRateThrottle):
-    """Evita el abuso del reenvío del correo de activación."""
+class LimiteReenvioThrottle(SimpleRateThrottle):
+    """Evita el abuso del reenvío del correo de activación (por IP)."""
 
+    scope = "reenvio"
     rate = "5/hour"
+
+    def get_cache_key(self, request, view):
+        return self.cache_format % {"scope": self.scope, "ident": self.get_ident(request)}
 
 
 class ReenviarVerificacionView(APIView):
-    """Reenvía el enlace de activación a la persona con sesión iniciada (HU-02)."""
+    """Reenvía el enlace de activación a una cuenta sin activar (HU-02)."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
+    authentication_classes = []
     throttle_classes = [LimiteReenvioThrottle]
 
     def post(self, request):
-        if request.user.correo_verificado:
-            return Response({"mensaje": "Tu cuenta ya está activada."}, status=status.HTTP_200_OK)
-        enviar_correo_verificacion(request.user)
+        correo = str(request.data.get("correo", "")).strip().lower()
+        usuario = None
+        if correo:
+            usuario = User.objects.filter(
+                email__iexact=correo, is_active=True, correo_verificado=False
+            ).first()
+        if usuario:
+            enviar_correo_verificacion(usuario)
+        # Respuesta uniforme: no revela qué correos tienen cuenta.
         return Response(
-            {"mensaje": "Te enviamos un nuevo enlace de activación."}, status=status.HTTP_200_OK
+            {"mensaje": "Si el correo corresponde a una cuenta sin activar, te enviamos un nuevo enlace."},
+            status=status.HTTP_200_OK,
         )

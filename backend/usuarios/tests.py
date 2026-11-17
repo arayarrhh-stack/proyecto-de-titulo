@@ -148,11 +148,30 @@ class VerificacionCorreoTests(TestCase):
         self.usuario.refresh_from_db()
         self.assertFalse(self.usuario.correo_verificado)
 
-    def test_reenviar_exige_sesion(self):
-        r = self.api.post("/api/usuarios/reenviar-verificacion/")
-        self.assertIn(r.status_code, (401, 403))
-
-    def test_reenviar_con_sesion(self):
-        self.api.force_login(self.usuario)
-        r = self.api.post("/api/usuarios/reenviar-verificacion/")
+    def test_reenviar_a_cuenta_sin_activar(self):
+        with patch("usuarios.views.enviar_correo_verificacion") as envio:
+            r = self.api.post(
+                "/api/usuarios/reenviar-verificacion/", {"correo": "ANA@empresa.cl"}, format="json"
+            )
         self.assertEqual(r.status_code, 200)
+        envio.assert_called_once()
+
+    def test_reenviar_no_revela_cuentas_inexistentes_ni_activadas(self):
+        Usuario.objects.create_user(
+            username="listo@empresa.cl",
+            email="listo@empresa.cl",
+            password="Clave1234",
+            correo_verificado=True,
+        )
+        with patch("usuarios.views.enviar_correo_verificacion") as envio:
+            r1 = self.api.post(
+                "/api/usuarios/reenviar-verificacion/", {"correo": "nadie@empresa.cl"}, format="json"
+            )
+            r2 = self.api.post(
+                "/api/usuarios/reenviar-verificacion/", {"correo": "listo@empresa.cl"}, format="json"
+            )
+        self.assertEqual(r1.status_code, 200)
+        self.assertEqual(r2.status_code, 200)
+        self.assertEqual(r1.data, r2.data)
+        envio.assert_not_called()
+        
