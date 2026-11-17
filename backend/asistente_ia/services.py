@@ -17,12 +17,13 @@ def anonimizar_sesion(identificador_raw):
 
 def buscar_productos_validados(clase_recomendada):
     """RG-14 y RF-43: selecciona únicamente productos activos con ficha en estado Validada."""
+    # Extraemos limpiamente el identificador de la clase (ej: "Clase 0" -> "0", "Clase 00" -> "00")
+    clase_limpia = clase_recomendada.replace("Clase", "").strip()
+
     queryset = Producto.objects.filter(
         activo=True,
         estado_validacion="validada",
-    ).filter(
-        Q(nombre__icontains=clase_recomendada)
-        | Q(descripcion__icontains=clase_recomendada)
+        clase_dielectrica=clase_limpia
     )[:5]
 
     # RNF-04: jamás se incluyen costos ni márgenes en el contexto del asistente.

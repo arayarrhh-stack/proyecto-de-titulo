@@ -75,7 +75,13 @@ class ProductoSerializer(serializers.ModelSerializer):
             "variantes",
             "imagenes",
         ]
-
+        
+        # AQUÍ AÑADIMOS LOS CAMPOS DE SOLO LECTURA PARA PROTEGER EL FLUJO DE VALIDACIÓN (RF-04 / HU-13)
+        read_only_fields = [
+            "estado_validacion", 
+            "validada_por", 
+            "version_ficha"
+        ]
         # Estos campos se usan para consultar datos públicos, no para recibir cambios.
         read_only_fields = fields
 

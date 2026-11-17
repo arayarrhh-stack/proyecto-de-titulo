@@ -5,8 +5,8 @@ from django.core.management.utils import get_random_secret_key
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# RNF-02: En local se genera una clave temporal; en producción reside en variables de entorno.
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY") or get_random_secret_key()
+# RNF-02: En producción reside en variables de entorno; en local usa un respaldo fijo predecible.
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY") or "django-insecure-acomse-dev-key-segura-2026-valida"
 DEBUG = os.environ.get("DJANGO_DEBUG", "0") == "1"
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "testserver"]
 
@@ -15,7 +15,7 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "rest_framework",
-    # Aplicaciones locales de ACOMSE (M1 a M7)
+    # Aplicaciones locales de ACOMSE (M1 a M8)
     "catalogo",
     "usuarios",
     "cotizaciones",
