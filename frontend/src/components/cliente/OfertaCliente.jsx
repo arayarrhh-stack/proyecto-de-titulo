@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { responderOferta } from "../services/solicitudes";
+﻿import { useState } from "react";
+import { responderOferta } from "../../services/solicitudes";
 
 function pesos(valor) {
   return `$${Math.round(Number(valor)).toLocaleString("es-CL")}`;

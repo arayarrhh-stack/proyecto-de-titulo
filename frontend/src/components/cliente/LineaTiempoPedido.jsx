@@ -1,4 +1,4 @@
-const PASOS = [
+﻿const PASOS = [
   { codigo: "aceptado", etiqueta: "Aceptado" },
   { codigo: "comprado_proveedor", etiqueta: "Comprado al proveedor" },
   { codigo: "despachado", etiqueta: "Despachado" },

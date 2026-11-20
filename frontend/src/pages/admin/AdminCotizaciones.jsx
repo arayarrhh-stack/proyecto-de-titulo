@@ -1,10 +1,9 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ESTADOS, coloresEstado, estadoDesdeBackend } from "../utils/estados";
-import { listarSolicitudes } from "../services/solicitudes";
-import FormularioProveedor from "../components/FormularioProveedor";
-import FormularioOferta from "../components/FormularioOferta";
-
+import { ESTADOS, coloresEstado, estadoDesdeBackend } from "../../utils/estados";
+import { listarSolicitudes } from "../../services/solicitudes";
+import FormularioProveedor from "../../components/admin/FormularioProveedor";
+import FormularioOferta from "../../components/admin/FormularioOferta";
 const CANALES = {
   portal: "Portal",
   whatsapp: "WhatsApp",
@@ -64,12 +63,7 @@ function AdminCotizaciones() {
     <div className="p-8 max-w-4xl">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="text-3xl font-bold text-slate-800">Solicitudes de cotización</h1>
-        <Link
-          to="/admin/solicitudes/nueva"
-          className="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-md hover:bg-blue-700 transition"
-        >
-          Registrar solicitud
-        </Link>
+        
       </div>
 
       <div className="flex flex-wrap gap-2 mb-6">
@@ -191,3 +185,4 @@ function AdminCotizaciones() {
 }
 
 export default AdminCotizaciones;
+

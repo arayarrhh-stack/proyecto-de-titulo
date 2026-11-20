@@ -1,4 +1,4 @@
-"""Configuración principal del backend de ACOMSE (Seguridad RNF-01 a RNF-08)."""
+﻿"""Configuración principal del backend de ACOMSE (Seguridad RNF-01 a RNF-08)."""
 import os
 from pathlib import Path
 from django.core.management.utils import get_random_secret_key
@@ -15,6 +15,7 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "rest_framework",
+    "corsheaders",  # Soporte para peticiones cruzadas desde el frontend
     # Aplicaciones locales de ACOMSE (M1 a M8)
     "catalogo",
     "usuarios",
@@ -28,6 +29,7 @@ AUTH_USER_MODEL = "usuarios.Usuario"
 
 # Django gestiona sesiones, autenticación y protección CSRF (RNF-03, Tabla 43).
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",  # Debe ir lo más arriba posible para interceptar solicitudes CORS
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -56,6 +58,19 @@ PASSWORD_HASHERS = [
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_HTTPONLY = False  # Permite que el frontend lea la cookie CSRF para enviarla en las cabeceras
+
+# Configuración de CORS y dominios de confianza para el desarrollo local (Vite en puerto 5173)
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+CORS_ALLOW_CREDENTIALS = True
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
 
 LANGUAGE_CODE = "es-cl"
 TIME_ZONE = "America/Santiago"

@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { listarPedidos } from "../services/solicitudes";
-import LineaTiempoPedido, { etiquetaPedido } from "../components/LineaTiempoPedido";
+import { listarPedidos } from "../../services/solicitudes";
+import LineaTiempoPedido, { etiquetaPedido } from "../../components/cliente/LineaTiempoPedido";
 
 function pesos(valor) {
   return `$${Math.round(Number(valor)).toLocaleString("es-CL")}`;

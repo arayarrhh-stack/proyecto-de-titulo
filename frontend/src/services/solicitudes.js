@@ -1,17 +1,32 @@
-import { pedir } from "./api";
+﻿import { pedir } from "./api";
 
-// items = los de CotizacionContext: { id, talla, color, cantidad, ... }
-export async function enviarSolicitud(items, observaciones = "") {
+// Acepta enviarSolicitud(items, observaciones) o enviarSolicitud({ items, empresa, rut, comentarios, ... })
+export async function enviarSolicitud(itemsOObjeto, observaciones = "") {
+  let listaItems = itemsOObjeto;
+  let textoObs = observaciones;
+
+  if (!Array.isArray(itemsOObjeto) && itemsOObjeto && typeof itemsOObjeto === "object") {
+    listaItems = itemsOObjeto.items || itemsOObjeto.productos || [];
+    const partes = [];
+    if (itemsOObjeto.empresa) partes.push(`Empresa: ${itemsOObjeto.empresa}`);
+    if (itemsOObjeto.rut) partes.push(`RUT: ${itemsOObjeto.rut}`);
+    if (itemsOObjeto.cargo) partes.push(`Cargo: ${itemsOObjeto.cargo}`);
+    if (itemsOObjeto.telefono) partes.push(`Teléfono: ${itemsOObjeto.telefono}`);
+    const extra = itemsOObjeto.observaciones || itemsOObjeto.comentarios || "";
+    if (extra) partes.push(extra);
+    textoObs = partes.join(" | ");
+  }
+
   return pedir("/api/cotizaciones/solicitudes/", {
     metodo: "POST",
     cuerpo: {
-      items: items.map((i) => ({
-        producto_id: i.id,
+      items: (Array.isArray(listaItems) ? listaItems : []).map((i) => ({
+        producto_id: i.producto_id ?? i.id,
         talla: i.talla ?? "",
         color: i.color ?? "",
-        cantidad: i.cantidad,
+        cantidad: Number(i.cantidad) || 1,
       })),
-      observaciones,
+      observaciones: textoObs,
     },
   });
 }

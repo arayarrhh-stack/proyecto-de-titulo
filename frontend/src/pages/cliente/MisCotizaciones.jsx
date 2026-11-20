@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { coloresEstado, estadoDesdeBackend } from "../utils/estados";
-import { listarSolicitudes, listarOfertas } from "../services/solicitudes";
-import OfertaCliente from "../components/OfertaCliente";
+import { coloresEstado, estadoDesdeBackend } from "../../utils/estados";
+import { listarSolicitudes, listarOfertas } from "../../services/solicitudes";
+import OfertaCliente from "../../components/cliente/OfertaCliente";
 
 function adaptarSolicitud(s) {
   return {

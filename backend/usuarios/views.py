@@ -2,7 +2,7 @@
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.core.exceptions import ValidationError
 from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
+from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie, csrf_exempt
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -75,12 +75,15 @@ class CsrfView(APIView):
         return Response({"mensaje": "ok"})
 
 
-@method_decorator(csrf_protect, name="dispatch")
 class LoginView(APIView):
     """Inicia sesión con correo y contraseña y devuelve el perfil con su rol."""
 
     permission_classes = [AllowAny]
     authentication_classes = []
+
+    @method_decorator(csrf_exempt)
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, **kwargs)
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -88,8 +91,6 @@ class LoginView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         correo = serializer.validated_data["correo"].strip().lower()
-        # El registro usa el correo como username, pero las cuentas creadas
-        # por consola (admin) pueden tener otro username: se busca por correo.
         existente = User.objects.filter(email__iexact=correo).first()
         username = existente.username if existente else correo
 
@@ -114,7 +115,6 @@ class LogoutView(APIView):
     def post(self, request):
         logout(request)
         return Response({"mensaje": "Sesión cerrada."}, status=status.HTTP_200_OK)
-
 
 
 class VerificarCorreoView(APIView):
@@ -164,7 +164,6 @@ class ReenviarVerificacionView(APIView):
             ).first()
         if usuario:
             enviar_correo_verificacion(usuario)
-        # Respuesta uniforme: no revela qué correos tienen cuenta.
         return Response(
             {"mensaje": "Si el correo corresponde a una cuenta sin activar, te enviamos un nuevo enlace."},
             status=status.HTTP_200_OK,

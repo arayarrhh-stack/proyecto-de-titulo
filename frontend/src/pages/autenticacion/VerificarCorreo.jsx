@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
-import { verificarCorreo, reenviarVerificacion } from "../services/auth";
+import { verificarCorreo, reenviarVerificacion } from "../../services/auth";
 
 function VerificarCorreo() {
   const { state } = useLocation();

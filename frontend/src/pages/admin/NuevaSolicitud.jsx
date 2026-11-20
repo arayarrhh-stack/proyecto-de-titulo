@@ -1,7 +1,7 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Link } from "react-router-dom";
-import { productosDePrueba } from "../data/productos";
-import { formatearRut, validarRut } from "../utils/rut";
+import { productosDePrueba } from "../../data/productos";
+import { formatearRut, validarRut } from "../../utils/rut";
 
 const CANALES = ["Teléfono", "Correo", "WhatsApp", "Visita presencial"];
 

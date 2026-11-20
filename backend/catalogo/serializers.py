@@ -112,6 +112,11 @@ class ProveedorAdminSerializer(serializers.ModelSerializer):
 
 
 class ProductoAdminSerializer(serializers.ModelSerializer):
+    def create(self, validated_data):
+        validated_data['activo'] = True
+        validated_data['estado_validacion'] = 'validada'
+        return super().create(validated_data)
+
     """Gestión completa de productos, proveedor habitual y estado de ficha (HU-07, HU-08, HU-13)."""
 
     variantes = VariantePublicaSerializer(many=True, read_only=True)

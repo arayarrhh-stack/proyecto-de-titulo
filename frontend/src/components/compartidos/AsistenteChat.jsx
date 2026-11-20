@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { consultarAsistente } from "../services/asistente";
-import { listarProductos } from "../services/catalogo";
-import { useCotizacion } from "../context/CotizacionContext";
+import { consultarAsistente } from "../../services/asistente";
+import { listarProductos } from "../../services/catalogo";
+import { useCotizacion } from "../../context/CotizacionContext";
 
 const AVISO =
   "Orientación técnica preliminar. No sustituye la evaluación de riesgos de un prevencionista ni constituye autorización para ejecutar el trabajo.";
