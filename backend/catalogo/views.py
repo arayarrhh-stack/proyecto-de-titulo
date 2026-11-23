@@ -46,6 +46,13 @@ def _es_administradora(user):
     )
 
 
+def _puede_ver_fichas(user):
+    """La administradora y la validadora técnica pueden listar productos con su estado de ficha."""
+    return _es_administradora(user) or bool(
+        user and user.is_authenticated and getattr(user, "rol", "") == "validadora"
+    )
+
+
 # HU-15 / HU-16 / HU-17: reúne la lista, el detalle y la búsqueda del catálogo.
 class ProductoViewSet(ReadOnlyModelViewSet):
     """Permite consultar la lista y un producto concreto, sin modificar datos."""
@@ -158,7 +165,7 @@ class ProductoAdminListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        if not _es_administradora(request.user):
+        if not _puede_ver_fichas(request.user):
             return Response(status=status.HTTP_403_FORBIDDEN)
         productos = Producto.objects.all()
         serializer = ProductoAdminSerializer(productos, many=True)
