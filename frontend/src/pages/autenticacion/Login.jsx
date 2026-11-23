@@ -22,6 +22,8 @@ export default function Login() {
 
       if (rol === "admin") {
         navigate("/admin");
+      } else if (rol === "validadora") {
+        navigate("/validadora");
       } else {
         navigate("/cliente/mis-cotizaciones");
       }

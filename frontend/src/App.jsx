@@ -14,6 +14,7 @@ import Catalogo from "./pages/catalogo/Catalogo";
 import Login from "./pages/autenticacion/Login";
 import Registro from "./pages/autenticacion/Registro";
 import VerificarCorreo from "./pages/autenticacion/VerificarCorreo";
+import ValidadoraFichas from "./pages/validadora/ValidadoraFichas";
 
 import ClienteLayout from "./pages/cliente/ClienteLayout";
 import Cotizacion from "./pages/cliente/Cotizacion";
@@ -32,7 +33,9 @@ import AdminMensajes from "./pages/admin/AdminMensajes";
 function ContenidoApp() {
   const location = useLocation();
   const esPanelDedicado =
-    location.pathname.startsWith("/admin") || location.pathname.startsWith("/cliente");
+    location.pathname.startsWith("/admin") ||
+    location.pathname.startsWith("/cliente") ||
+    location.pathname.startsWith("/validadora");
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
@@ -48,6 +51,16 @@ function ContenidoApp() {
           <Route path="/registro" element={<Registro />} />
           <Route path="/verificar-correo" element={<VerificarCorreo />} />
           <Route path="/cotizacion" element={<Cotizacion />} />
+
+          {/* Panel de la Validadora técnica */}
+          <Route
+            path="/validadora"
+            element={
+              <RutaProtegida rol="validadora">
+                <ValidadoraFichas />
+              </RutaProtegida>
+            }
+          />
 
           {/* Panel del Cliente */}
           <Route

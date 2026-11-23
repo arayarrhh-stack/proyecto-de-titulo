@@ -84,6 +84,11 @@ export function adaptarProducto(p) {
   return {
     id: p.id,
     codigo: p.codigo,
+    activo: p.activo ?? true,
+    estadoValidacion: p.estado_validacion ?? "validada",
+    fuenteFicha: p.fuente_ficha ?? "",
+    versionFicha: p.version_ficha ?? "1.0",
+    fechaVigenciaFicha: p.fecha_vigencia_ficha ?? "",
     nombre: p.nombre,
     categoria: p.categoria_nombre ?? p.categoria ?? extras.categoria ?? "",
     categoriaId: p.categoria_id ?? (typeof p.categoria === "number" ? p.categoria : extras.categoriaId ?? ""),
@@ -153,7 +158,6 @@ export async function crearProducto(datosFormulario) {
     tension_max_uso_v: tensionMaxUso ? Number(tensionMaxUso) : null,
     tension_ensayo_v: tensionMaxUso ? Number(tensionMaxUso) * 5 : null,
     activo: true,
-    estado_validacion: "validada",
   };
 
   const creado = await pedir("/api/catalogo/admin/productos/", {
@@ -161,12 +165,6 @@ export async function crearProducto(datosFormulario) {
     cuerpo,
   });
 
-  try {
-    await pedir(`/api/catalogo/admin/productos/${creado.id}/validar-ficha/`, {
-      metodo: "POST",
-      cuerpo: {},
-    });
-  } catch {}
 
   const imagenBase64 = await archivoABase64(foto);
   const fichaBase64 = await archivoABase64(ficha);
@@ -209,8 +207,6 @@ export async function actualizarProducto(id, datosFormulario) {
     clase_dielectrica: claseDielectrica ?? "",
     tension_max_uso_v: tensionMaxUso ? Number(tensionMaxUso) : null,
     tension_ensayo_v: tensionMaxUso ? Number(tensionMaxUso) * 5 : null,
-    activo: true,
-    estado_validacion: "validada",
   };
 
   const actualizado = await pedir(`/api/catalogo/admin/productos/${id}/`, {
@@ -252,5 +248,21 @@ export function leerProductosLocales() {
   return [];
 }
 
+export async function listarProductosAdmin() {
+  const datos = await pedir("/api/catalogo/admin/productos/");
+  const lista = Array.isArray(datos) ? datos : datos.results || [];
+  return lista.map(adaptarProducto);
+}
 
+export async function validarFicha(id, { estado, fuente, version, vigencia }) {
+  return pedir(`/api/catalogo/admin/productos/${id}/validar-ficha/`, {
+    metodo: "POST",
+    cuerpo: {
+      estado_validacion: estado,
+      fuente_ficha: fuente,
+      version_ficha: version,
+      fecha_vigencia_ficha: vigencia || null,
+    },
+  });
+}
 
