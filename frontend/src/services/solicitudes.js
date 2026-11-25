@@ -1,4 +1,5 @@
-﻿import { pedir } from "./api";
+﻿import { pedir, descargarArchivo } from "./api";
+
 
 // Acepta enviarSolicitud(items, observaciones) o enviarSolicitud({ items, empresa, rut, comentarios, ... })
 export async function enviarSolicitud(itemsOObjeto, observaciones = "") {
@@ -63,4 +64,18 @@ export async function responderOferta(ofertaId, datos) {
 
 export async function listarPedidos() {
   return pedir("/api/cotizaciones/pedidos/");
+}
+
+
+
+export async function descargarPdfOferta(ofertaId, folio) {
+  const blob = await descargarArchivo(`/api/cotizaciones/ofertas/${ofertaId}/pdf/`);
+  const url = URL.createObjectURL(blob);
+  const enlace = document.createElement("a");
+  enlace.href = url;
+  enlace.download = `${folio}.pdf`;
+  document.body.appendChild(enlace);
+  enlace.click();
+  enlace.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
