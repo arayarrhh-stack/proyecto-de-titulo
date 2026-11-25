@@ -1,4 +1,6 @@
 """Vistas API con autorización por objeto y serialización diferenciada por rol (M4, M5, M7)."""
+from pathlib import Path
+
 from datetime import date
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
@@ -6,6 +8,9 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.conf import settings
+from django.http import FileResponse
+from utils.pdf_service import generar_pdf_cotizacion_cliente
 
 from .models import (
     CanalOrigen,
@@ -216,3 +221,30 @@ class PedidoListView(APIView):
             )
             serializer = PedidoClienteSerializer(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+class CotizacionClientePdfView(APIView):
+    """Entrega el PDF oficial de una cotización, sin costos ni márgenes (RF-53, RF-55, RNF-04)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, cotizacion_id):
+        if _es_administradora(request.user):
+            cot_cliente = get_object_or_404(CotizacionCliente, id=cotizacion_id)
+        else:
+            cot_cliente = get_object_or_404(
+                CotizacionCliente,
+                id=cotizacion_id,
+                solicitud__cliente=request.user,
+            )
+
+        ruta_relativa = generar_pdf_cotizacion_cliente(cot_cliente)
+        if cot_cliente.pdf_generado != ruta_relativa:
+            cot_cliente.pdf_generado = ruta_relativa
+            cot_cliente.save(update_fields=["pdf_generado"])
+
+        archivo = Path(settings.BASE_DIR) / ruta_relativa
+        respuesta = FileResponse(open(archivo, "rb"), content_type="application/pdf")
+        respuesta["Content-Disposition"] = f'inline; filename="{cot_cliente.folio}.pdf"'
+        return respuesta

@@ -7,6 +7,7 @@ from .views import (
     CotizacionProveedorCreateView,
     PedidoListView,
     SolicitudListCreateView,
+    CotizacionClientePdfView
 )
 
 urlpatterns = [
@@ -27,4 +28,10 @@ urlpatterns = [
         name="cotizacion-cliente-responder",
     ),
     path("pedidos/", PedidoListView.as_view(), name="pedidos-list"),
+
+        path(
+        "ofertas/<int:cotizacion_id>/pdf/",
+        CotizacionClientePdfView.as_view(),
+        name="cotizacion-cliente-pdf",
+    ),
 ]
