@@ -1,9 +1,10 @@
 ﻿import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ESTADOS, coloresEstado, estadoDesdeBackend } from "../../utils/estados";
-import { listarSolicitudes } from "../../services/solicitudes";
+import { listarSolicitudes, listarOfertas, descargarPdfOferta } from "../../services/solicitudes";
 import FormularioProveedor from "../../components/admin/FormularioProveedor";
 import FormularioOferta from "../../components/admin/FormularioOferta";
+
 const CANALES = {
   portal: "Portal",
   whatsapp: "WhatsApp",
@@ -43,13 +44,21 @@ function AdminCotizaciones() {
   const [error, setError] = useState("");
   const [filtro, setFiltro] = useState("Todas");
   const [abierta, setAbierta] = useState(null);
+  const [ofertas, setOfertas] = useState({});
 
   function cargar() {
-    return listarSolicitudes()
-      .then((datos) => setSolicitudes(datos.map(adaptarSolicitud)))
-      .catch((e) => setError(e.message))
-      .finally(() => setCargando(false));
-  }
+  return Promise.all([listarSolicitudes(), listarOfertas()])
+    .then(([datos, listaOfertas]) => {
+      setSolicitudes(datos.map(adaptarSolicitud));
+      const porSolicitud = {};
+      listaOfertas.forEach((o) => {
+        porSolicitud[o.solicitud] = o;
+      });
+      setOfertas(porSolicitud);
+    })
+    .catch((e) => setError(e.message))
+    .finally(() => setCargando(false));
+}
 
   useEffect(() => {
     cargar();
@@ -131,6 +140,22 @@ function AdminCotizaciones() {
                 {sol.observaciones}
               </p>
             )}
+
+            {ofertas[sol.id] && (
+              <div className="mt-4 border-t border-slate-200 pt-4 flex justify-end">
+                <button
+                  onClick={() =>
+                    descargarPdfOferta(ofertas[sol.id].id, ofertas[sol.id].folio).catch((e) =>
+                      setError(e.message)
+                    )
+                  }
+                  className="bg-slate-800 text-white text-sm font-medium px-4 py-2 rounded-md hover:bg-slate-900 transition"
+                >
+                  Descargar PDF de la oferta {ofertas[sol.id].folio}
+                </button>
+              </div>
+            )}
+
             {sol.estado === "Recibida" && (
               <div className="mt-4 border-t border-slate-200 pt-4">
                 {abierta === sol.id ? (
