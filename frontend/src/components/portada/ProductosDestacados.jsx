@@ -1,20 +1,18 @@
 ﻿import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { listarProductos, leerProductosLocales } from "../../services/catalogo";
+import { listarProductos } from "../../services/catalogo";
 import { useCotizacion } from "../../context/CotizacionContext";
 import { useAuth } from "../../context/AuthContext";
 
 export default function ProductosDestacados() {
-  const [productos, setProductos] = useState(() => leerProductosLocales().slice(0, 4));
+  const [productos, setProductos] = useState([]);
   const { agregar } = useCotizacion();
   const { usuario } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    listarProductos({ pagina: 1 })
-      .then((r) => {
-        if (r?.productos?.length > 0) setProductos(r.productos.slice(0, 4));
-      })
+    listarProductos({ destacado: true })
+      .then((r) => setProductos(r.productos.slice(0, 8)))
       .catch(() => {});
   }, []);
 

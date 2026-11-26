@@ -76,6 +76,9 @@ def actualizar_producto(producto, datos_nuevos):
         producto.estado_validacion = EstadoValidacionFicha.BORRADOR
         producto.destacado = False
 
+    if not producto.activo:
+        producto.destacado = False
+
     if producto.destacado:
         if (
             not producto.activo

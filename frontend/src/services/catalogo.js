@@ -90,6 +90,7 @@ export function adaptarProducto(p) {
     versionFicha: p.version_ficha ?? "1.0",
     fechaVigenciaFicha: p.fecha_vigencia_ficha ?? "",
     nombre: p.nombre,
+    destacado: Boolean(p.destacado),
     categoria: p.categoria_nombre ?? p.categoria ?? extras.categoria ?? "",
     categoriaId: p.categoria_id ?? (typeof p.categoria === "number" ? p.categoria : extras.categoriaId ?? ""),
     imagen: principal?.url_imagen ?? p.imagen ?? extras.imagen ?? null,
@@ -106,10 +107,11 @@ export function adaptarProducto(p) {
   };
 }
 
-export async function listarProductos({ busqueda = "", categoria = "", pagina = 1 } = {}) {
+export async function listarProductos({ busqueda = "", categoria = "", pagina = 1, destacado = false } = {}) {
   const params = new URLSearchParams();
   if (busqueda) params.set("busqueda", busqueda);
   if (categoria) params.set("categoria", categoria);
+  if (destacado) params.set("destacado", "true");
   params.set("page", pagina);
 
   const datos = await pedir(`/api/catalogo/productos/?${params}`);
@@ -266,3 +268,18 @@ export async function validarFicha(id, { estado, fuente, version, vigencia }) {
   });
 }
 
+
+export function marcarDestacado(id, valor) {
+  return pedir(`/api/catalogo/admin/productos/${id}/`, {
+    metodo: "PATCH",
+    cuerpo: { destacado: valor },
+  });
+}
+
+
+export function cambiarActivo(id, valor) {
+  return pedir(`/api/catalogo/admin/productos/${id}/`, {
+    metodo: "PATCH",
+    cuerpo: { activo: valor },
+  });
+}

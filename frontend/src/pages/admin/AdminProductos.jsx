@@ -4,6 +4,8 @@ import {
   listarProductosAdmin,
   listarCategorias,
   eliminarProducto,
+  marcarDestacado,
+  cambiarActivo,
 } from "../../services/catalogo";
 
 const ESTADOS = {
@@ -57,6 +59,34 @@ export default function AdminProductos() {
     try {
       await eliminarProducto(id);
       setProductos((prev) => prev.filter((p) => String(p.id) !== String(id)));
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  async function alternarDestacado(p) {
+    setError("");
+    try {
+      await marcarDestacado(p.id, !p.destacado);
+      setProductos((prev) =>
+        prev.map((x) => (x.id === p.id ? { ...x, destacado: !p.destacado } : x))
+      );
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  async function alternarActivo(p) {
+    setError("");
+    try {
+      await cambiarActivo(p.id, !p.activo);
+      setProductos((prev) =>
+        prev.map((x) =>
+          x.id === p.id
+            ? { ...x, activo: !p.activo, destacado: p.activo ? false : x.destacado }
+            : x
+        )
+      );
     } catch (e) {
       setError(e.message);
     }
@@ -203,11 +233,49 @@ export default function AdminProductos() {
                           {estado.texto}
                         </span>
                         <p className={`text-[11px] mt-1 ${visible ? "text-green-700" : "text-slate-400"}`}>
-                          {visible ? "Visible en el catálogo" : "No visible en el catálogo"}
+                          {!p.activo
+                            ? "Inactivo: oculto del catálogo y del asistente"
+                            : visible
+                            ? "Visible en el catálogo"
+                            : "No visible en el catálogo"}
                         </p>
                       </td>
                       <td className="px-5 py-3 text-right">
                         <div className="inline-flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => alternarDestacado(p)}
+                            disabled={!visible && !p.destacado}
+                            title={!visible && !p.destacado
+                                ? "Solo se pueden destacar productos activos y visibles en el catálogo"
+                                : "Mostrar en la página de inicio"
+                            }
+                            className={`text-xs font-bold px-3 py-1.5 rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed ${
+                              p.destacado
+                                ? "bg-[#facc15] text-[#0b192c] hover:bg-yellow-300"
+                                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                            }`}
+                          >
+                            {p.destacado ? "★ Destacado" : "☆ Destacar"}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => alternarActivo(p)}
+                            title={
+                              p.activo
+                                ? "Ocultar del catálogo y del asistente"
+                                : "Volver a mostrar en el catálogo"
+                            }
+                            className={`text-xs font-bold px-3 py-1.5 rounded-lg transition ${
+                              p.activo
+                                ? "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                                : "bg-green-50 text-green-700 hover:bg-green-100"
+                            }`}
+                          >
+                            {p.activo ? "Desactivar" : "Activar"}
+                          </button>
+                          
                           <Link
                             to={`/admin/productos/editar/${p.id}`}
                             className="bg-[#0b192c] hover:bg-slate-800 text-[#facc15] text-xs font-bold px-3.5 py-1.5 rounded-lg transition"
