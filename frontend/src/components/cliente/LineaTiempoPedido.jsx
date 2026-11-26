@@ -1,13 +1,13 @@
 ﻿const PASOS = [
   { codigo: "aceptado", etiqueta: "Aceptado" },
-  { codigo: "comprado_proveedor", etiqueta: "Comprado al proveedor" },
+  { codigo: "comprado_proveedor", etiqueta: "En preparación", etiquetaAdmin: "Comprado al proveedor" },
   { codigo: "despachado", etiqueta: "Despachado" },
   { codigo: "entregado", etiqueta: "Entregado" },
   { codigo: "pagado", etiqueta: "Pagado" },
   { codigo: "cerrado", etiqueta: "Cerrado" },
 ];
 
-export default function LineaTiempoPedido({ estado }) {
+export default function LineaTiempoPedido({ estado, admin = false }) {
   const actual = Math.max(
     0,
     PASOS.findIndex((p) => p.codigo === estado)
@@ -32,7 +32,7 @@ export default function LineaTiempoPedido({ estado }) {
               {hecho ? "✓" : i + 1}
             </span>
             <span className={esActual ? "font-semibold text-slate-800" : hecho ? "text-slate-600" : "text-slate-400"}>
-              {p.etiqueta}
+              {admin && p.etiquetaAdmin ? p.etiquetaAdmin : p.etiqueta}
             </span>
           </li>
         );
@@ -41,4 +41,7 @@ export default function LineaTiempoPedido({ estado }) {
   );
 }
 
-export const etiquetaPedido = (codigo) => PASOS.find((p) => p.codigo === codigo)?.etiqueta ?? codigo;
+export const etiquetaPedido = (codigo, admin = false) => {
+  const p = PASOS.find((x) => x.codigo === codigo);
+  return p ? (admin && p.etiquetaAdmin ? p.etiquetaAdmin : p.etiqueta) : codigo;
+};

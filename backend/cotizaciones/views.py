@@ -1,6 +1,6 @@
 """Vistas API con autorización por objeto y serialización diferenciada por rol (M4, M5, M7)."""
 from pathlib import Path
-
+from django.http import HttpResponse
 from datetime import date
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
@@ -10,7 +10,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.conf import settings
 from django.http import FileResponse
-from utils.pdf_service import generar_pdf_cotizacion_cliente
+from utils.pdf_service import generar_pdf_cotizacion_cliente, generar_pdf_oc_proveedor, generar_pdf_solicitud
+from django.utils.dateparse import parse_date
 
 from .models import (
     CanalOrigen,
@@ -19,6 +20,7 @@ from .models import (
     EstadoSolicitud,
     Pedido,
     Solicitud,
+    EstadoPedido,
 )
 from .serializers import (
     CotizacionClienteAdminSerializer,
@@ -34,6 +36,8 @@ from .services import (
     crear_solicitud_cotizacion,
     emitir_cotizacion_cliente,
     registrar_cotizacion_proveedor,
+    generar_orden_compra_proveedor,
+    registrar_despacho_y_entrega,
 )
 
 
@@ -247,4 +251,113 @@ class CotizacionClientePdfView(APIView):
         archivo = Path(settings.BASE_DIR) / ruta_relativa
         respuesta = FileResponse(open(archivo, "rb"), content_type="application/pdf")
         respuesta["Content-Disposition"] = f'inline; filename="{cot_cliente.folio}.pdf"'
+        return respuesta
+
+
+def _fecha_opcional(valor):
+    """Convierte AAAA-MM-DD a fecha; vacío devuelve None."""
+    texto = str(valor or "").strip()
+    if not texto:
+        return None
+    try:
+        fecha = parse_date(texto)
+    except ValueError:
+        fecha = None
+    if fecha is None:
+        raise ValidationError("Fecha inválida, use el formato AAAA-MM-DD.")
+    return fecha
+
+
+class PedidoOrdenCompraView(APIView):
+    """La administradora emite la OC al proveedor y genera su PDF (HU-25, RF-35)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pedido_id):
+        if not _es_administradora(request.user):
+            return Response(
+                {"detalle": "Solo administración puede emitir órdenes de compra."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        pedido = get_object_or_404(Pedido, id=pedido_id)
+        if pedido.estado != EstadoPedido.ACEPTADO:
+            return Response(
+                {"detalle": "Solo se puede emitir la OC de un pedido en estado Aceptado."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        proveedor = str(request.data.get("proveedor_nombre", "")).strip()
+        direccion = str(request.data.get("direccion_despacho", "")).strip()
+        if not proveedor or not direccion:
+            return Response(
+                {"detalle": "Indique el proveedor y la dirección de despacho."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        oc = generar_orden_compra_proveedor(pedido, proveedor, direccion)
+        oc.pdf_generado = generar_pdf_oc_proveedor(oc)
+        oc.save(update_fields=["pdf_generado"])
+        return Response(PedidoAdminSerializer(pedido).data, status=status.HTTP_201_CREATED)
+
+
+class PedidoDespachoView(APIView):
+    """La administradora registra despacho y entrega del pedido (HU-26, RF-36)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pedido_id):
+        if not _es_administradora(request.user):
+            return Response(
+                {"detalle": "Solo administración puede registrar despachos."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        pedido = get_object_or_404(Pedido, id=pedido_id)
+        if pedido.estado not in (EstadoPedido.COMPRADO_PROVEEDOR, EstadoPedido.DESPACHADO):
+            return Response(
+                {"detalle": "El pedido debe tener la OC al proveedor emitida y no estar entregado."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        transportista = str(request.data.get("transportista", "")).strip()
+        seguimiento = str(request.data.get("numero_seguimiento", "")).strip()
+        receptor = str(request.data.get("nombre_receptor", "")).strip()
+        if not transportista or not seguimiento:
+            return Response(
+                {"detalle": "Indique el transportista y el número de seguimiento."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            fecha_estimada = _fecha_opcional(request.data.get("fecha_estimada"))
+            fecha_entrega = _fecha_opcional(request.data.get("fecha_entrega"))
+            if bool(fecha_entrega) != bool(receptor):
+                raise ValidationError(
+                    "Para registrar la entrega indique la fecha de entrega y quién recibió."
+                )
+        except ValidationError as exc:
+            return Response({"detalle": exc.messages[0]}, status=status.HTTP_400_BAD_REQUEST)
+
+        registrar_despacho_y_entrega(
+            pedido,
+            transportista=transportista,
+            numero_seguimiento=seguimiento,
+            fecha_estimada=fecha_estimada,
+            fecha_entrega=fecha_entrega,
+            nombre_receptor=receptor,
+        )
+        return Response(PedidoAdminSerializer(pedido).data, status=status.HTTP_200_OK)
+
+
+
+class SolicitudPdfView(APIView):
+    """RF 038: PDF de la solicitud del cliente para pedir cotización al proveedor."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, solicitud_id):
+        if not _es_administradora(request.user):
+            return Response(
+                {"detalle": "Solo administración puede generar este documento."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        solicitud = get_object_or_404(Solicitud, id=solicitud_id)
+        contenido = generar_pdf_solicitud(solicitud)
+        respuesta = HttpResponse(contenido, content_type="application/pdf")
+        respuesta["Content-Disposition"] = f'inline; filename="{solicitud.folio}.pdf"'
         return respuesta

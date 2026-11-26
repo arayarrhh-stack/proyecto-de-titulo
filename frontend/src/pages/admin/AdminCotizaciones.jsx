@@ -1,7 +1,7 @@
 ﻿import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ESTADOS, coloresEstado, estadoDesdeBackend } from "../../utils/estados";
-import { listarSolicitudes, listarOfertas, descargarPdfOferta } from "../../services/solicitudes";
+import { listarSolicitudes, listarOfertas, descargarPdfOferta, descargarPdfSolicitud } from "../../services/solicitudes";
 import FormularioProveedor from "../../components/admin/FormularioProveedor";
 import FormularioOferta from "../../components/admin/FormularioOferta";
 
@@ -140,6 +140,17 @@ function AdminCotizaciones() {
                 {sol.observaciones}
               </p>
             )}
+
+            <div className="mt-4 border-t border-slate-200 pt-4 flex justify-end">
+              <button
+                onClick={() =>
+                  descargarPdfSolicitud(sol.id, sol.folio).catch((e) => setError(e.message))
+                }
+                className="border border-slate-300 text-slate-700 text-sm font-medium px-4 py-2 rounded-md hover:bg-slate-50 transition"
+              >
+                Descargar solicitud en PDF
+              </button>
+            </div>
 
             {ofertas[sol.id] && (
               <div className="mt-4 border-t border-slate-200 pt-4 flex justify-end">

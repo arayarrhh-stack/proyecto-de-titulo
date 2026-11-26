@@ -79,3 +79,27 @@ export async function descargarPdfOferta(ofertaId, folio) {
   enlace.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
+export async function emitirOrdenCompra(pedidoId, datos) {
+  return pedir(`/api/cotizaciones/pedidos/${pedidoId}/orden-compra/`, {
+    metodo: "POST",
+    cuerpo: datos,
+  });
+}
+
+export async function registrarDespacho(pedidoId, datos) {
+  return pedir(`/api/cotizaciones/pedidos/${pedidoId}/despacho/`, {
+    metodo: "POST",
+    cuerpo: datos,
+  });
+}
+
+
+export async function descargarPdfSolicitud(solicitudId, folio) {
+  const blob = await descargarArchivo(`/api/cotizaciones/solicitudes/${solicitudId}/pdf/`);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${folio}.pdf`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
