@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+﻿import { useEffect, useState } from "react";
 import {
   listarMensajes,
   marcarMensajeLeido,
@@ -6,15 +6,32 @@ import {
 } from "../../services/mensajes";
 
 export default function AdminMensajes() {
-  const [mensajes, setMensajes] = useState(listarMensajes);
+  const [mensajes, setMensajes] = useState([]);
   const [filtroAsunto, setFiltroAsunto] = useState("");
+  const [error, setError] = useState("");
 
-  function alternarLeido(id, estadoActual) {
-    setMensajes(marcarMensajeLeido(id, !estadoActual));
+  useEffect(() => {
+    listarMensajes()
+      .then(setMensajes)
+      .catch((e) => setError(e.message));
+  }, []);
+
+  async function alternarLeido(id, estadoActual) {
+    try {
+      const actualizado = await marcarMensajeLeido(id, !estadoActual);
+      setMensajes((prev) => prev.map((m) => (m.id === id ? actualizado : m)));
+    } catch (e) {
+      setError(e.message);
+    }
   }
 
-  function borrar(id) {
-    setMensajes(eliminarMensaje(id));
+  async function borrar(id) {
+    try {
+      await eliminarMensaje(id);
+      setMensajes((prev) => prev.filter((m) => m.id !== id));
+    } catch (e) {
+      setError(e.message);
+    }
   }
 
   const visibles = filtroAsunto
@@ -50,6 +67,12 @@ export default function AdminMensajes() {
           </select>
         </div>
       </div>
+
+      {error && (
+        <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
+          {error}
+        </p>
+      )}
 
       {visibles.length === 0 ? (
         <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center text-sm text-slate-500">

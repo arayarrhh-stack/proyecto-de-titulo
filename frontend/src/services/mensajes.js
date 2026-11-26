@@ -1,39 +1,28 @@
-﻿const CLAVE_MENSAJES = "acomse_mensajes_contacto";
+﻿import { pedir } from "./api";
 
-export function listarMensajes() {
-  try {
-    const raw = localStorage.getItem(CLAVE_MENSAJES);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+export function enviarMensaje(datos) {
+  return pedir("/api/analitica/institucional/", {
+    metodo: "POST",
+    cuerpo: {
+      nombre: datos.nombre,
+      empresa: datos.empresa,
+      rut_empresa: datos.rutEmpresa,
+      correo: datos.email,
+      asunto: datos.asunto,
+      sucursal: datos.sucursal,
+      mensaje: datos.mensaje,
+    },
+  });
 }
 
-export function guardarMensaje(datos) {
-  const actuales = listarMensajes();
-  const nuevo = {
-    id: Date.now(),
-    ...datos,
-    fecha: new Date().toLocaleString("es-CL", {
-      dateStyle: "short",
-      timeStyle: "short",
-    }),
-    leido: false,
-  };
-  localStorage.setItem(CLAVE_MENSAJES, JSON.stringify([nuevo, ...actuales]));
-  return nuevo;
+export function listarMensajes() {
+  return pedir("/api/analitica/mensajes/");
 }
 
 export function marcarMensajeLeido(id, leido = true) {
-  const actualizados = listarMensajes().map((m) =>
-    m.id === id ? { ...m, leido } : m
-  );
-  localStorage.setItem(CLAVE_MENSAJES, JSON.stringify(actualizados));
-  return actualizados;
+  return pedir(`/api/analitica/mensajes/${id}/`, { metodo: "PATCH", cuerpo: { leido } });
 }
 
 export function eliminarMensaje(id) {
-  const restantes = listarMensajes().filter((m) => m.id !== id);
-  localStorage.setItem(CLAVE_MENSAJES, JSON.stringify(restantes));
-  return restantes;
+  return pedir(`/api/analitica/mensajes/${id}/`, { metodo: "DELETE" });
 }
