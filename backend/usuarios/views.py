@@ -1,4 +1,8 @@
 """Vistas API para registro corporativo y gestión de cuentas (M1)."""
+import re
+
+from django.db.models import Count, Q, Value
+from django.db.models.functions import Replace
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.core.exceptions import ValidationError
 from django.utils.decorators import method_decorator
@@ -9,6 +13,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.throttling import SimpleRateThrottle
 from .verificacion import enviar_correo_verificacion, usuario_desde_token
+from .models import RolUsuario
+from django.shortcuts import get_object_or_404
 
 from .serializers import LoginSerializer, PerfilUsuarioSerializer, RegistroClienteSerializer
 from .services import anonimizar_cuenta_usuario, registrar_empresa_y_usuario
@@ -166,5 +172,132 @@ class ReenviarVerificacionView(APIView):
             enviar_correo_verificacion(usuario)
         return Response(
             {"mensaje": "Si el correo corresponde a una cuenta sin activar, te enviamos un nuevo enlace."},
+            status=status.HTTP_200_OK,
+        )
+
+
+class ClientesAdminListView(APIView):
+    """RF 035: la administradora lista los clientes y busca por empresa o RUT."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        usuario = request.user
+        if not (usuario.is_staff or getattr(usuario, "rol", "") == RolUsuario.ADMINISTRADORA):
+            return Response(
+                {"detalle": "Solo administración puede ver el listado de clientes."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        clientes = (
+            User.objects.filter(rol=RolUsuario.CLIENTE, eliminado_anonimizado=False)
+            .select_related("empresa")
+            .annotate(total_solicitudes=Count("solicitudes"))
+            .order_by("empresa__razon_social", "first_name")
+        )
+
+        termino = request.query_params.get("q", "").strip()
+        if termino:
+            # El RUT se compara sin puntos, guion ni espacios: 76.123.456-7 = 761234567.
+            rut_buscado = re.sub(r"[.\-\s]", "", termino)
+            clientes = clientes.annotate(
+                rut_limpio=Replace(
+                    Replace("empresa__rut", Value("."), Value("")), Value("-"), Value("")
+                )
+            ).filter(
+                Q(empresa__razon_social__icontains=termino)
+                | Q(first_name__icontains=termino)
+                | Q(email__icontains=termino)
+                | (Q(rut_limpio__icontains=rut_buscado) if rut_buscado else Q())
+            )
+
+        datos = [
+            {
+                "id": c.id,
+                "razon_social": c.empresa.razon_social if c.empresa else "",
+                "rut": c.empresa.rut if c.empresa else "",
+                "telefono": c.empresa.telefono if c.empresa else "",
+                "contacto": c.first_name or c.username,
+                "cargo": c.cargo,
+                "correo": c.email,
+                "correo_verificado": c.correo_verificado,
+                "fecha_registro": c.date_joined.date().isoformat(),
+                "total_solicitudes": c.total_solicitudes,
+            }
+            for c in clientes
+        ]
+        return Response(datos, status=status.HTTP_200_OK)
+
+
+class ClienteAdminDetalleView(APIView):
+    """RF 036: ficha de un cliente con el historial completo de sus solicitudes."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, cliente_id):
+        usuario = request.user
+        if not (usuario.is_staff or getattr(usuario, "rol", "") == RolUsuario.ADMINISTRADORA):
+            return Response(
+                {"detalle": "Solo administración puede ver la ficha de un cliente."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        cliente = get_object_or_404(
+            User.objects.select_related("empresa"),
+            id=cliente_id,
+            rol=RolUsuario.CLIENTE,
+            eliminado_anonimizado=False,
+        )
+
+        solicitudes = cliente.solicitudes.prefetch_related(
+            "lineas__producto", "cotizaciones_cliente"
+        ).order_by("-creado_en")
+
+        historial = []
+        for s in solicitudes:
+            lineas = [
+                {
+                    "codigo": l.producto.codigo,
+                    "producto": l.producto.nombre,
+                    "talla": l.talla,
+                    "color": l.color,
+                    "cantidad": l.cantidad,
+                }
+                for l in s.lineas.all()
+            ]
+            ofertas = list(s.cotizaciones_cliente.all())
+            oferta = max(ofertas, key=lambda o: o.id) if ofertas else None
+            historial.append(
+                {
+                    "id": s.id,
+                    "folio": s.folio,
+                    "fecha": s.creado_en.date().isoformat(),
+                    "estado": s.estado,
+                    "estado_texto": s.get_estado_display(),
+                    "canal": s.get_canal_origen_display(),
+                    "observaciones": s.observaciones,
+                    "unidades": sum(l["cantidad"] for l in lineas),
+                    "lineas": lineas,
+                    "oferta": (
+                        {"folio": oferta.folio, "total": str(oferta.total)} if oferta else None
+                    ),
+                }
+            )
+
+        empresa = cliente.empresa
+        return Response(
+            {
+                "id": cliente.id,
+                "razon_social": empresa.razon_social if empresa else "",
+                "rut": empresa.rut if empresa else "",
+                "direccion": empresa.direccion if empresa else "",
+                "telefono": empresa.telefono if empresa else "",
+                "contacto": cliente.first_name or cliente.username,
+                "cargo": cliente.cargo,
+                "correo": cliente.email,
+                "correo_verificado": cliente.correo_verificado,
+                "fecha_registro": cliente.date_joined.date().isoformat(),
+                "solicitudes": historial,
+            },
             status=status.HTTP_200_OK,
         )

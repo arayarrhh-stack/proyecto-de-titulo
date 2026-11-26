@@ -29,6 +29,8 @@ import NuevoProducto from "./pages/admin/NuevoProducto";
 import AdminProductos from "./pages/admin/AdminProductos";
 import AdminCategorias from "./pages/admin/AdminCategorias";
 import AdminMensajes from "./pages/admin/AdminMensajes";
+import AdminClientes from "./pages/admin/AdminClientes";
+import AdminClienteDetalle from "./pages/admin/AdminClienteDetalle";
 
 function ContenidoApp() {
   const location = useLocation();
@@ -106,6 +108,8 @@ function ContenidoApp() {
             <Route path="cotizaciones" element={<AdminCotizaciones />} />
             <Route path="solicitudes/nueva" element={<NuevaSolicitud />} />
             <Route path="pedidos" element={<Pedidos admin />} />
+            <Route path="clientes" element={<AdminClientes />} />
+            <Route path="clientes/:id" element={<AdminClienteDetalle />} />
             <Route path="productos" element={<AdminProductos />} />
             <Route path="productos/nuevo" element={<NuevoProducto />} />
             <Route path="productos/editar/:id" element={<NuevoProducto />} />
