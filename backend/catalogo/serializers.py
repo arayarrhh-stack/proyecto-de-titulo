@@ -86,10 +86,7 @@ class ProductoSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_normativa(self, obj):
-        """RF-18: publica la normativa únicamente cuando el estado de la ficha es Validada."""
-        if obj.estado_validacion == EstadoValidacionFicha.VALIDADA:
-            return obj.normativa
-        return ""
+        return obj.normativa
 
 
 # --- SERIALIZADORES RESERVADOS AL ROL ADMINISTRADOR (M2) ---

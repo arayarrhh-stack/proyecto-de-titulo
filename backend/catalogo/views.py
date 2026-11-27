@@ -61,7 +61,7 @@ class ProductoViewSet(ReadOnlyModelViewSet):
     # Los demás se omiten de la lista. Si se consulta su detalle, responde
     # 404 ("no encontrado"). La regla se aplica a ambas formas de consulta.
     queryset = Producto.objects.filter(
-        activo=True, estado_validacion=EstadoValidacionFicha.VALIDADA
+        activo=True
     ).prefetch_related("variantes", "imagenes")
 
     # HU-15 / HU-16: prepara los campos públicos mediante ProductoSerializer.
@@ -183,6 +183,9 @@ class ProductoAdminListCreateView(APIView):
                 variantes=request.data.get("variantes", []),
                 imagenes=request.data.get("imagenes", []),
             )
+            if not producto.activo:
+                producto.activo = True
+                producto.save(update_fields=["activo"])
         except ValidationError as exc:
             return Response({"detalle": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 

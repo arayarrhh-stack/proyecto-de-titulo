@@ -398,6 +398,7 @@ export default function Cotizacion() {
                       <input
                         type="number"
                         min={1}
+                        max={30}
                         value={item.cantidad || 1}
                         onChange={(e) =>
                           actualizarCantidad(item.id, Number(e.target.value), {

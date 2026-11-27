@@ -2,16 +2,25 @@
 
 const CotizacionContext = createContext();
 const CLAVE_STORAGE = "acomse_carro_cotizacion";
+export const MAX_CANTIDAD_PRODUCTO = 30;
 
 function generarClave(id, talla = "", color = "") {
   return `${id}::${talla || ""}::${color || ""}`;
+}
+
+function limitarCantidad(valor) {
+  const n = Math.floor(Number(valor) || 1);
+  return Math.min(MAX_CANTIDAD_PRODUCTO, Math.max(1, n));
 }
 
 export function CotizacionProvider({ children }) {
   const [items, setItems] = useState(() => {
     try {
       const guardado = localStorage.getItem(CLAVE_STORAGE);
-      return guardado ? JSON.parse(guardado) : [];
+      const parsed = guardado ? JSON.parse(guardado) : [];
+      return Array.isArray(parsed)
+        ? parsed.map((it) => ({ ...it, cantidad: limitarCantidad(it.cantidad) }))
+        : [];
     } catch {
       return [];
     }
@@ -34,7 +43,7 @@ export function CotizacionProvider({ children }) {
       if (existe) {
         return prev.map((it) =>
           generarClave(it.id, it.talla, it.color) === clave
-            ? { ...it, cantidad: (it.cantidad || 1) + 1 }
+            ? { ...it, cantidad: limitarCantidad((it.cantidad || 1) + 1) }
             : it
         );
       }
@@ -61,7 +70,7 @@ export function CotizacionProvider({ children }) {
   }
 
   function actualizarCantidad(id, nuevaCantidad, { talla = "", color = "" } = {}) {
-    const cantidad = Math.max(1, Number(nuevaCantidad) || 1);
+    const cantidad = limitarCantidad(nuevaCantidad);
     const clave = generarClave(id, talla, color);
     setItems((prev) =>
       prev.map((it) =>
@@ -78,7 +87,7 @@ export function CotizacionProvider({ children }) {
 
   return (
     <CotizacionContext.Provider
-      value={{ items, agregar, quitar, actualizarCantidad, vaciar }}
+      value={{ items, agregar, quitar, actualizarCantidad, vaciar, maxCantidad: MAX_CANTIDAD_PRODUCTO }}
     >
       {children}
     </CotizacionContext.Provider>

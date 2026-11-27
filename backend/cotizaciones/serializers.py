@@ -20,6 +20,7 @@ class LineaSolicitudSerializer(serializers.ModelSerializer):
 
     producto_codigo = serializers.CharField(source="producto.codigo", read_only=True)
     producto_nombre = serializers.CharField(source="producto.nombre", read_only=True)
+    cantidad = serializers.IntegerField(min_value=1, max_value=30)
 
     class Meta:
         model = LineaSolicitud

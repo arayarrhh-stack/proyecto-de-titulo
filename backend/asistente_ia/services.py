@@ -1,7 +1,6 @@
-"""Orquestador del asistente controlado, bitácora anonimizada y derivaciones (M6)."""
+﻿"""Orquestador del asistente controlado, bitácora anonimizada y derivaciones (M6)."""
 import hashlib
 import time
-from django.db.models import Q
 
 from catalogo.models import Producto
 from .models import Conversacion, Regla, SolicitudAsesoria
@@ -10,28 +9,30 @@ from .orientador_normativo import generar_orientacion
 
 
 def anonimizar_sesion(identificador_raw):
-    """Genera un hash irreversible para registrar la sesión sin datos personales (RNF-05, RNF-10)."""
+    """Genera un hash irreversible para registrar la sesión sin datos personales."""
     base = str(identificador_raw or "anonimo").encode("utf-8")
     return hashlib.sha256(base).hexdigest()[:32]
 
 
 def buscar_productos_validados(clase_recomendada):
-    """RG-14 y RF-43: selecciona únicamente productos activos con ficha en estado Validada."""
-    # Extraemos limpiamente el identificador de la clase (ej: "Clase 0" -> "0", "Clase 00" -> "00")
+    """Selecciona únicamente productos activos del catálogo para la clase recomendada."""
     clase_limpia = clase_recomendada.replace("Clase", "").strip()
 
     queryset = Producto.objects.filter(
         activo=True,
-        estado_validacion="validada",
-        clase_dielectrica=clase_limpia
+        clase_dielectrica=clase_limpia,
     )[:5]
 
-    # RNF-04: jamás se incluyen costos ni márgenes en el contexto del asistente.
     return list(queryset.values("id", "codigo", "nombre", "descripcion"))
 
 
-def procesar_consulta_normativa(consulta_usuario, antecedentes, identificador_sesion="anonimo"):
-    """Ejecuta el flujo de 8 pasos del asistente controlado (apartado 7.1 del informe)."""
+def procesar_consulta_normativa(
+    consulta_usuario,
+    antecedentes,
+    identificador_sesion="anonimo",
+    historial=None,
+):
+    """Ejecuta el flujo del asistente controlado con soporte de memoria de sesión (RF 033)."""
     inicio = time.monotonic()
     resultado_motor = evaluar_antecedentes(antecedentes)
 
@@ -44,13 +45,13 @@ def procesar_consulta_normativa(consulta_usuario, antecedentes, identificador_se
         consulta_usuario=consulta_usuario,
         resultado_motor=resultado_motor,
         productos_sugeridos=productos_sugeridos,
+        historial=historial,
     )
 
     tiempo_ms = int((time.monotonic() - inicio) * 1000)
     codigo_regla = resultado_motor.get("regla_aplicada", "")
     regla_bd = Regla.objects.filter(codigo=codigo_regla).first()
 
-    # RF-49 y RNF-10: registro en bitácora anonimizada con regla aplicada y tiempo.
     conversacion = Conversacion.objects.create(
         sesion_anonima=anonimizar_sesion(identificador_sesion),
         antecedentes=antecedentes,
@@ -62,9 +63,8 @@ def procesar_consulta_normativa(consulta_usuario, antecedentes, identificador_se
         tiempo_respuesta_ms=tiempo_ms,
     )
 
-    # RF-45 y HU-30: si corresponde derivar, se crea la solicitud de asesoría para el panel.
     solicitud_asesoria_id = None
-    if resultado_motor.get("derivar"):
+    if resultado_motor.get("derivar") and not historial:
         motivo = resultado_motor.get(
             "motivo_derivacion",
             resultado_motor.get("mensaje", "Derivación automática por regla de seguridad."),

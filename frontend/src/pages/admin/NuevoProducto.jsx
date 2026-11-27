@@ -18,6 +18,22 @@ const CATEGORIAS_DEFECTO = [
   { id: "6", nombre: "Instrumentos de medición", imagen: "/img/portada/cat-6.png" },
 ];
 
+const TALLAS_CHILENAS = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"];
+
+const COLORES_DISPONIBLES = [
+  { nombre: "Negro", hex: "#111827" },
+  { nombre: "Blanco", hex: "#ffffff" },
+  { nombre: "Rojo", hex: "#dc2626" },
+  { nombre: "Amarillo", hex: "#facc15" },
+  { nombre: "Azul", hex: "#2563eb" },
+  { nombre: "Naranja", hex: "#f97316" },
+  { nombre: "Verde", hex: "#16a34a" },
+  { nombre: "Beige", hex: "#d6c5a7" },
+  { nombre: "Gris", hex: "#6b7280" },
+  { nombre: "Café", hex: "#78350f" },
+  { nombre: "Celeste", hex: "#38bdf8" },
+];
+
 function leerCategoriasLocales() {
   try {
     const raw = localStorage.getItem(CLAVE_CATEGORIAS);
@@ -41,83 +57,79 @@ function archivoABase64(archivo) {
   });
 }
 
-// Componente de etiquetas interactivas (chips) para Tallas y Colores
-function InputEtiquetas({ etiqueta, placeholder, valores, setValores }) {
-  const [entrada, setEntrada] = useState("");
-
-  function agregarItem() {
-    const limpios = entrada
-      .split(",")
-      .map((x) => x.trim())
-      .filter(Boolean);
-    if (limpios.length === 0) return;
-
-    setValores((prev) => {
-      const nuevos = [...prev];
-      limpios.forEach((item) => {
-        if (!nuevos.some((v) => v.toLowerCase() === item.toLowerCase())) {
-          nuevos.push(item);
-        }
-      });
-      return nuevos;
-    });
-    setEntrada("");
-  }
-
-  function manejarTecla(e) {
-    if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault();
-      agregarItem();
-    }
-  }
-
-  function quitarItem(item) {
-    setValores((prev) => prev.filter((v) => v !== item));
+// Selector cerrado de Tallas chilenas (evita traducción automática y texto inválido)
+function SelectorTallas({ valores, setValores }) {
+  function alternar(talla) {
+    setValores((prev) =>
+      prev.includes(talla) ? prev.filter((v) => v !== talla) : [...prev, talla]
+    );
   }
 
   return (
     <div>
-      <label className="block text-xs font-bold text-slate-600 mb-1">
-        {etiqueta}
+      <label className="block text-xs font-bold text-slate-600 mb-1.5">
+        Tallas disponibles (Chile)
       </label>
-      <div className="flex gap-2">
-        <input
-          type="text"
-          value={entrada}
-          onChange={(e) => setEntrada(e.target.value)}
-          onKeyDown={manejarTecla}
-          placeholder={placeholder}
-          className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#facc15]"
-        />
-        <button
-          type="button"
-          onClick={agregarItem}
-          className="bg-[#0b192c] hover:bg-slate-800 text-[#facc15] text-xs font-extrabold px-3.5 rounded-lg transition shrink-0"
-        >
-          + Agregar
-        </button>
-      </div>
-
-      {valores.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mt-2">
-          {valores.map((v) => (
-            <span
-              key={v}
-              className="inline-flex items-center gap-1.5 bg-slate-100 border border-slate-200 text-[#0b192c] text-xs font-bold px-2.5 py-1 rounded-full"
+      <div className="flex flex-wrap gap-1.5" translate="no">
+        {TALLAS_CHILENAS.map((t) => {
+          const activa = valores.includes(t);
+          return (
+            <button
+              key={t}
+              type="button"
+              translate="no"
+              onClick={() => alternar(t)}
+              className={`notranslate px-3 py-1.5 rounded-lg text-xs font-extrabold border transition ${
+                activa
+                  ? "bg-[#0b192c] text-[#facc15] border-[#0b192c]"
+                  : "bg-white text-slate-700 border-slate-300 hover:border-[#0b192c]"
+              }`}
             >
-              {v}
-              <button
-                type="button"
-                onClick={() => quitarItem(v)}
-                className="text-red-500 hover:text-red-700 font-black leading-none"
-                title="Quitar"
-              >
-                ✕
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
+              {t}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Selector cerrado de Colores reales
+function SelectorColores({ valores, setValores }) {
+  function alternar(color) {
+    setValores((prev) =>
+      prev.includes(color) ? prev.filter((v) => v !== color) : [...prev, color]
+    );
+  }
+
+  return (
+    <div>
+      <label className="block text-xs font-bold text-slate-600 mb-1.5">
+        Colores disponibles
+      </label>
+      <div className="flex flex-wrap gap-1.5">
+        {COLORES_DISPONIBLES.map((c) => {
+          const activo = valores.includes(c.nombre);
+          return (
+            <button
+              key={c.nombre}
+              type="button"
+              onClick={() => alternar(c.nombre)}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold border transition ${
+                activo
+                  ? "bg-[#0b192c] text-[#facc15] border-[#0b192c]"
+                  : "bg-white text-slate-700 border-slate-300 hover:border-[#0b192c]"
+              }`}
+            >
+              <span
+                className="w-3 h-3 rounded-full border border-slate-300 shrink-0"
+                style={{ backgroundColor: c.hex }}
+              />
+              {c.nombre}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -407,7 +419,6 @@ function NuevoProducto() {
                 if (["-", "+", "e", "E", ".", ","].includes(e.key)) e.preventDefault();
               }}
               onChange={(e) => {
-                // Solo permite dígitos positivos (elimina signos menos o letras)
                 const soloDigitos = e.target.value.replace(/\D/g, "");
                 setTensionMaxUso(soloDigitos);
               }}
@@ -448,20 +459,10 @@ function NuevoProducto() {
           </div>
         )}
 
-        {/* Tallas y Colores como etiquetas interactivas (placeholder gris, vacíos por defecto) */}
+        {/* Selectores cerrados de Tallas chilenas y Colores */}
         <div className="grid sm:grid-cols-2 gap-4">
-          <InputEtiquetas
-            etiqueta="Tallas / Medidas disponibles"
-            placeholder="Ej: 9, 10, 11 (Enter para agregar)"
-            valores={tallas}
-            setValores={setTallas}
-          />
-          <InputEtiquetas
-            etiqueta="Colores disponibles"
-            placeholder="Ej: Amarillo, Rojo (Enter para agregar)"
-            valores={colores}
-            setValores={setColores}
-          />
+          <SelectorTallas valores={tallas} setValores={setTallas} />
+          <SelectorColores valores={colores} setValores={setColores} />
         </div>
 
         <div>

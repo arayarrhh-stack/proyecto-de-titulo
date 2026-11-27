@@ -69,6 +69,16 @@ function pesosV(v) {
   return v != null ? `${Number(v).toLocaleString("es-CL")} V` : "—";
 }
 
+function construirHistorial(listaMensajes) {
+  return listaMensajes
+    .map((m) => ({
+      rol: m.de === "usuario" ? "usuario" : "asistente",
+      texto: m.resultado ? (m.resultado.orientacion ?? "") : (m.texto ?? ""),
+    }))
+    .filter((t) => t.texto.trim() !== "")
+    .slice(-10);
+}
+
 function Resultado({ r, agregados, onAgregar }) {
   const v = r.validacion_tecnica ?? {};
   return (
@@ -109,7 +119,7 @@ function Resultado({ r, agregados, onAgregar }) {
 
       {r.productos_sugeridos?.length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-slate-600 mb-1">Productos validados en el catálogo</p>
+          <p className="text-xs font-semibold text-slate-600 mb-1">Productos disponibles en el catálogo</p>
           <ul className="space-y-2">
             {r.productos_sugeridos.map((p) => (
               <li key={p.id} className="bg-white border border-slate-200 rounded-md p-2 text-xs flex items-center justify-between gap-2">
@@ -163,6 +173,7 @@ export default function AsistenteChat() {
     setIndice(0);
     setDatos({});
     setTexto("");
+    setAgregados(new Set());
     setMensajes([
       nuevoMensaje({
         de: "bot",
@@ -173,7 +184,6 @@ export default function AsistenteChat() {
     ]);
   }
 
-  // Inicia la conversación la primera vez que se abre
   useEffect(() => {
     if (abierto && mensajes.length === 0) reiniciar();
   }, [abierto]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -211,8 +221,46 @@ export default function AsistenteChat() {
     }
   }
 
+  async function consultarSeguimiento(preguntaUsuario, historialActual) {
+    setEnviando(true);
+    try {
+      const r = await consultarAsistente({
+        tarea: datos.tarea,
+        entorno: datos.entorno,
+        tension_maxima: datos.tension,
+        tipo_corriente: datos.corriente,
+        riesgo_arco: datos.arco,
+        consulta: preguntaUsuario,
+        historial: historialActual,
+      });
+      publicar({ de: "bot", texto: r.orientacion });
+    } catch (e) {
+      publicar({
+        de: "bot",
+        texto:
+          e.estado === 429
+            ? "Alcanzaste el límite de consultas por minuto. Espera un momento y vuelve a intentarlo."
+            : `${e.message} Puedes continuar revisando el catálogo o reiniciar la asesoría.`,
+      });
+    } finally {
+      setEnviando(false);
+    }
+  }
+
   function responder(textoUsuario, valor) {
-    if (enviando || terminado) return;
+    if (enviando) return;
+
+    // RF 033: preguntas de seguimiento manteniendo el contexto de la sesión
+    if (terminado) {
+      const limpia = textoUsuario.trim();
+      if (!limpia) return;
+      const historialActual = construirHistorial(mensajes);
+      publicar({ de: "usuario", texto: limpia });
+      setTexto("");
+      consultarSeguimiento(limpia, historialActual);
+      return;
+    }
+
     const interpretado = valor !== undefined ? { ok: true, valor } : interpretar(paso, textoUsuario);
     publicar({ de: "usuario", texto: textoUsuario });
     setTexto("");
@@ -260,8 +308,8 @@ export default function AsistenteChat() {
     <div className="fixed bottom-4 right-4 z-50 w-[22rem] max-w-[calc(100vw-2rem)] h-[34rem] max-h-[80vh] bg-slate-50 border border-slate-300 rounded-lg shadow-xl flex flex-col">
       <div className="flex items-center justify-between bg-blue-600 text-white px-4 py-3 rounded-t-lg">
         <span className="font-semibold">Asistente técnico ACOMSE</span>
-        <div className="flex items-center gap-3 text-sm">
-          <button onClick={reiniciar} className="hover:underline">Nueva</button>
+        <div className="flex items-center gap-3 text-xs">
+          <button onClick={reiniciar} className="hover:underline">Reiniciar asesoría</button>
           <button onClick={() => setAbierto(false)} aria-label="Cerrar" className="text-lg leading-none">×</button>
         </div>
       </div>
@@ -299,12 +347,12 @@ export default function AsistenteChat() {
           </div>
         )}
 
-        {enviando && <p className="text-slate-500 text-xs">Analizando tus antecedentes…</p>}
+        {enviando && <p className="text-slate-500 text-xs">Analizando tu consulta…</p>}
 
         {terminado && !enviando && (
           <div className="flex flex-wrap gap-3 text-xs">
             <button onClick={reiniciar} className="text-blue-600 font-medium hover:underline">
-              Hacer otra consulta
+              Reiniciar asesoría
             </button>
             <Link to="/" className="text-blue-600 font-medium hover:underline">Ir al catálogo</Link>
           </div>
@@ -322,13 +370,13 @@ export default function AsistenteChat() {
         <input
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
-          disabled={terminado || enviando}
-          placeholder={terminado ? "Consulta finalizada" : "Escribe tu respuesta…"}
+          disabled={enviando}
+          placeholder={terminado ? "Haz una pregunta de seguimiento…" : "Escribe tu respuesta…"}
           className="flex-1 border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100"
         />
         <button
           type="submit"
-          disabled={terminado || enviando || !texto.trim()}
+          disabled={enviando || !texto.trim()}
           className="bg-blue-600 text-white text-sm font-medium px-3 rounded-md hover:bg-blue-700 disabled:opacity-50"
         >
           Enviar
