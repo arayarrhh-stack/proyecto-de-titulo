@@ -1,23 +1,30 @@
 ﻿const PASOS = [
   { codigo: "aceptado", etiqueta: "Aceptado" },
-  { codigo: "comprado_proveedor", etiqueta: "En preparación", etiquetaAdmin: "Comprado al proveedor" },
+  { codigo: "comprado_proveedor", etiqueta: "En proceso", etiquetaAdmin: "Comprado al proveedor" },
   { codigo: "despachado", etiqueta: "Despachado" },
   { codigo: "entregado", etiqueta: "Entregado" },
-  { codigo: "pagado", etiqueta: "Pagado" },
-  { codigo: "cerrado", etiqueta: "Cerrado" },
 ];
 
-export default function LineaTiempoPedido({ estado, admin = false }) {
-  const actual = Math.max(
+// Si el backend entrega un estado posterior a la entrega, se muestra como entregado.
+const ESTADOS_FINALES = ["pagado", "cerrado"];
+
+function indiceActual(estado) {
+  if (ESTADOS_FINALES.includes(estado)) return PASOS.length - 1;
+  return Math.max(
     0,
     PASOS.findIndex((p) => p.codigo === estado)
   );
+}
+
+export default function LineaTiempoPedido({ estado, admin = false }) {
+  const actual = indiceActual(estado);
 
   return (
     <ol className="flex flex-wrap gap-x-4 gap-y-2 text-xs">
       {PASOS.map((p, i) => {
         const hecho = i < actual;
         const esActual = i === actual;
+        const etiqueta = admin && p.etiquetaAdmin ? p.etiquetaAdmin : p.etiqueta;
         return (
           <li key={p.codigo} className="flex items-center gap-1.5">
             <span
@@ -32,7 +39,7 @@ export default function LineaTiempoPedido({ estado, admin = false }) {
               {hecho ? "✓" : i + 1}
             </span>
             <span className={esActual ? "font-semibold text-slate-800" : hecho ? "text-slate-600" : "text-slate-400"}>
-              {admin && p.etiquetaAdmin ? p.etiquetaAdmin : p.etiqueta}
+              {etiqueta}
             </span>
           </li>
         );
@@ -42,6 +49,8 @@ export default function LineaTiempoPedido({ estado, admin = false }) {
 }
 
 export const etiquetaPedido = (codigo, admin = false) => {
-  const p = PASOS.find((x) => x.codigo === codigo);
-  return p ? (admin && p.etiquetaAdmin ? p.etiquetaAdmin : p.etiqueta) : codigo;
+  if (ESTADOS_FINALES.includes(codigo)) return "Entregado";
+  const paso = PASOS.find((p) => p.codigo === codigo);
+  if (!paso) return codigo;
+  return admin && paso.etiquetaAdmin ? paso.etiquetaAdmin : paso.etiqueta;
 };
