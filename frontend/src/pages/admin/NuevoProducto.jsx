@@ -166,8 +166,13 @@ function NuevoProducto() {
         if (!Array.isArray(remotas) || remotas.length === 0) return;
         setCategorias((locales) => {
           const nombresLocales = new Set(locales.map((c) => c.nombre.toLowerCase()));
+          const idsLocales = new Set(locales.map((c) => String(c.id)));
           const extras = remotas
-            .filter((r) => !nombresLocales.has((r.nombre || "").toLowerCase()))
+            .filter(
+              (r) =>
+                !nombresLocales.has((r.nombre || "").toLowerCase()) &&
+                !idsLocales.has(String(r.id))
+            )
             .map((r) => ({ id: String(r.id), nombre: r.nombre, imagen: "/img/portada/cat-1.png" }));
           return [...locales, ...extras];
         });
@@ -419,8 +424,8 @@ function NuevoProducto() {
               onChange={(e) => setCategoriaId(e.target.value)}
               className={campo}
             >
-              {categorias.map((c) => (
-                <option key={c.id} value={c.id}>
+              {categorias.map((c, i) => (
+                <option key={`${c.id}-${i}`} value={c.id}>
                   {c.nombre}
                 </option>
               ))}
