@@ -12,6 +12,11 @@ from django.conf import settings
 from django.http import FileResponse
 from utils.pdf_service import generar_pdf_cotizacion_cliente, generar_pdf_oc_proveedor, generar_pdf_solicitud
 from django.utils.dateparse import parse_date
+import logging
+
+from django.contrib.auth import get_user_model
+
+from utils.email_service import enviar_correo_transaccional
 
 from .models import (
     CanalOrigen,
@@ -49,6 +54,50 @@ def _es_administradora(user):
         and (user.is_staff or getattr(user, "rol", "") == "administradora")
     )
 
+logger = logging.getLogger(__name__)
+
+
+def _avisar_admin_nueva_solicitud(solicitud):
+    """RF 023: avisa por correo (y notificación interna) a cada administradora de una nueva solicitud.
+
+    Nunca interrumpe la creación de la solicitud: si algo falla, solo se registra en el log.
+    """
+    try:
+        User = get_user_model()
+        admins = User.objects.filter(rol="administradora", is_active=True).exclude(email="")
+        cliente = solicitud.cliente
+        empresa = getattr(cliente, "empresa", None)
+        nombre_cliente = empresa.razon_social if empresa else (cliente.first_name or cliente.email)
+
+        lineas = []
+        for linea in solicitud.lineas.select_related("producto").all():
+            variante = " / ".join(x for x in [linea.talla, linea.color] if x)
+            detalle = f"- {linea.producto.nombre} x{linea.cantidad}"
+            if variante:
+                detalle += f" ({variante})"
+            lineas.append(detalle)
+
+        texto = (
+            f"Se recibió una nueva solicitud de cotización.\n\n"
+            f"Folio: {solicitud.folio}\n"
+            f"Cliente: {nombre_cliente}\n"
+            f"Contacto: {cliente.first_name} <{cliente.email}>\n\n"
+            f"Productos solicitados:\n" + "\n".join(lineas)
+        )
+        if solicitud.observaciones:
+            texto += f"\n\nObservaciones: {solicitud.observaciones}"
+        texto += "\n\nRevísala en el panel de administración de ACOMSE."
+
+        for admin in admins:
+            enviar_correo_transaccional(
+                destinatario_email=admin.email,
+                asunto=f"Nueva solicitud {solicitud.folio}",
+                contenido_texto=texto,
+                usuario_destinatario=admin,
+                tipo_notificacion="nueva_solicitud",
+            )
+    except Exception:  # el aviso nunca debe romper la creación de la solicitud
+        logger.exception("No se pudo avisar a la administradora de la solicitud %s", solicitud.folio)
 
 class SolicitudListCreateView(APIView):
     """Lista las solicitudes propias del cliente (o todas para admin) y crea nuevas (HU-20, HU-39)."""
@@ -81,7 +130,9 @@ class SolicitudListCreateView(APIView):
             )
         except (ValidationError, ValueError, TypeError) as exc:
             return Response({"detalle": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-
+        
+        _avisar_admin_nueva_solicitud(solicitud)
+        
         serializer = SolicitudSerializer(solicitud)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
