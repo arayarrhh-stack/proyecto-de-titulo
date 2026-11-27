@@ -430,13 +430,32 @@ def generar_pdf_solicitud(solicitud):
     ]))
     historia.append(tabla)
 
+    # Lugar de despacho (sin indicar de quién es)
+    direccion = (getattr(solicitud, "direccion_despacho", "") or "").strip()
+    if direccion:
+        historia += [
+            Spacer(1, 6 * mm),
+            p("Lugar de despacho", est["subtitulo"]),
+            Spacer(1, 1.5 * mm),
+            p(direccion),
+        ]
+
     # 3. Observaciones opcionales
-    if (solicitud.observaciones or "").strip():
+    # 3. Observaciones opcionales (se descartan los datos de contacto que
+    #    versiones anteriores del formulario guardaban dentro del texto)
+    prefijos_cliente = ("empresa:", "rut:", "cargo:", "teléfono:", "telefono:")
+    partes = [
+        parte.strip()
+        for parte in (solicitud.observaciones or "").split("|")
+        if parte.strip() and not parte.strip().lower().startswith(prefijos_cliente)
+    ]
+    observaciones = " | ".join(partes)
+    if observaciones:
         historia += [
             Spacer(1, 8 * mm),
             p("Observaciones", est["subtitulo"]),
             Spacer(1, 1.5 * mm),
-            p(solicitud.observaciones),
+            p(observaciones),
         ]
 
     return _construir_pdf_reportlab(

@@ -8,14 +8,9 @@ export async function enviarSolicitud(itemsOObjeto, observaciones = "") {
 
   if (!Array.isArray(itemsOObjeto) && itemsOObjeto && typeof itemsOObjeto === "object") {
     listaItems = itemsOObjeto.items || itemsOObjeto.productos || [];
-    const partes = [];
-    if (itemsOObjeto.empresa) partes.push(`Empresa: ${itemsOObjeto.empresa}`);
-    if (itemsOObjeto.rut) partes.push(`RUT: ${itemsOObjeto.rut}`);
-    if (itemsOObjeto.cargo) partes.push(`Cargo: ${itemsOObjeto.cargo}`);
-    if (itemsOObjeto.telefono) partes.push(`Teléfono: ${itemsOObjeto.telefono}`);
-    const extra = itemsOObjeto.observaciones || itemsOObjeto.comentarios || "";
-    if (extra) partes.push(extra);
-    textoObs = partes.join(" | ");
+    // Solo los comentarios del cliente: sus datos de contacto ya están en su cuenta
+    // y no deben viajar en un texto que luego pueda salir en documentos al proveedor.
+    textoObs = itemsOObjeto.observaciones || itemsOObjeto.comentarios || "";
   }
 
   return pedir("/api/cotizaciones/solicitudes/", {
@@ -28,6 +23,8 @@ export async function enviarSolicitud(itemsOObjeto, observaciones = "") {
         cantidad: Number(i.cantidad) || 1,
       })),
       observaciones: textoObs,
+      direccion_despacho:
+        (!Array.isArray(itemsOObjeto) && itemsOObjeto?.direccionDespacho) || "",
     },
   });
 }
