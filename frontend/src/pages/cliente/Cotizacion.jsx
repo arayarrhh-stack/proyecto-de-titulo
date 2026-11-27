@@ -31,11 +31,12 @@ export default function Cotizacion() {
 
   const [form, setForm] = useState({
     nombre: usuario?.nombre || "",
-    empresa: usuario?.empresa || "",
-    rutEmpresa: usuario?.rut || "",
+    empresa: usuario?.empresa?.razon_social || "",
+    rutEmpresa: usuario?.empresa?.rut || "",
     cargo: "",
     email: usuario?.email || "",
-    telefono: usuario?.telefono || "",
+    telefono: usuario?.empresa?.telefono || "",
+    direccionDespacho: usuario?.empresa?.direccion || "",
     comentarios: "",
   });
 
@@ -50,7 +51,10 @@ export default function Cotizacion() {
         ...prev,
         nombre: prev.nombre || usuario.nombre || "",
         email: prev.email || usuario.email || "",
-        empresa: prev.empresa || usuario.empresa || "",
+        empresa: prev.empresa || usuario.empresa?.razon_social || "",
+        rutEmpresa: prev.rutEmpresa || usuario.empresa?.rut || "",
+        telefono: prev.telefono || usuario.empresa?.telefono || "",
+        direccionDespacho: prev.direccionDespacho || usuario.empresa?.direccion || "",
       }));
     }
   }, [usuario]);
@@ -100,6 +104,10 @@ export default function Cotizacion() {
       if (soloDigitos.length < 8 || soloDigitos.length > 15) {
         nuevosErrores.telefono = "Ingresa un número válido (ej: +56 9 1234 5678).";
       }
+    }
+
+    if (!form.direccionDespacho || form.direccionDespacho.trim().length < 5) {
+      nuevosErrores.direccionDespacho = "Indica la dirección donde quieres recibir tu pedido.";
     }
 
     setErrores(nuevosErrores);
@@ -315,13 +323,26 @@ export default function Cotizacion() {
               <p className="text-[11px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-1 mb-3">
                 Información Adicional
               </p>
+              <div className="mb-4">
+                <label className={labelClass}>Dirección de despacho *</label>
+                <input
+                  name="direccionDespacho"
+                  value={form.direccionDespacho}
+                  onChange={cambiar}
+                  placeholder="Calle, número, comuna y ciudad"
+                  className={claseInput("direccionDespacho")}
+                />
+                {errores.direccionDespacho && (
+                  <p className="text-[11px] text-red-600 font-semibold mt-1">{errores.direccionDespacho}</p>
+                )}
+              </div>
               <label className={labelClass}>Comentarios o requerimientos especiales</label>
               <textarea
                 name="comentarios"
                 value={form.comentarios}
                 onChange={cambiar}
                 rows={3}
-                placeholder="Plazo requerido, lugar de despacho, certificaciones específicas..."
+                placeholder="Plazo requerido, certificaciones específicas..."
                 className={claseInput("comentarios")}
               />
             </div>

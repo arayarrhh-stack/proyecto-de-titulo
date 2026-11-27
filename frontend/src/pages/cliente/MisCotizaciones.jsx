@@ -10,6 +10,7 @@ function adaptarSolicitud(s) {
     fecha: new Date(s.creado_en).toLocaleDateString("es-CL"),
     estado: estadoDesdeBackend[s.estado] ?? s.estado,
     observaciones: s.observaciones,
+    direccion: s.direccion_despacho,
     documento: false, // el PDF aún no existe en el backend
     productos: s.lineas.map((l) => ({
       id: l.id,
@@ -106,6 +107,13 @@ function MisCotizaciones() {
                   </li>
                 ))}
               </ul>
+
+              {cot.direccion && (
+                <p className="mt-3 text-sm text-slate-500 border-t border-slate-200 pt-3">
+                  <span className="font-medium text-slate-600">Dirección de despacho:</span>{" "}
+                  {cot.direccion}
+                </p>
+              )}
 
               {cot.observaciones && (
                 <p className="mt-3 text-sm text-slate-500 border-t border-slate-200 pt-3">

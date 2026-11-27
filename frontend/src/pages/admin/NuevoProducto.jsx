@@ -1,10 +1,12 @@
-﻿import { useState, useRef, useEffect } from "react";
+﻿import { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   crearProducto,
   actualizarProducto,
   obtenerProductoPorId,
   listarCategorias,
+  marcarImagenPrincipal,
+  eliminarImagen,
 } from "../../services/catalogo";
 
 const CLAVE_CATEGORIAS = "acomse_categorias_portada";
@@ -140,7 +142,8 @@ function NuevoProducto() {
   const [tensionMaxUso, setTensionMaxUso] = useState("");
   const [tallas, setTallas] = useState([]);
   const [colores, setColores] = useState([]);
-  const [foto, setFoto] = useState(null);
+  const [fotos, setFotos] = useState([]);
+  const [imagenesActuales, setImagenesActuales] = useState([]);
   const [ficha, setFicha] = useState(null);
   const [imagenActual, setImagenActual] = useState(null);
   const [fichaActual, setFichaActual] = useState(null);
@@ -148,6 +151,10 @@ function NuevoProducto() {
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
   const [guardado, setGuardado] = useState(false);
+
+  // Vistas previas de las fotos nuevas (se liberan al cambiar la lista)
+  const previas = useMemo(() => fotos.map((f) => URL.createObjectURL(f)), [fotos]);
+  useEffect(() => () => previas.forEach((u) => URL.revokeObjectURL(u)), [previas]);
 
   const inputFotoRef = useRef(null);
   const inputFichaRef = useRef(null);
@@ -159,8 +166,13 @@ function NuevoProducto() {
         if (!Array.isArray(remotas) || remotas.length === 0) return;
         setCategorias((locales) => {
           const nombresLocales = new Set(locales.map((c) => c.nombre.toLowerCase()));
+          const idsLocales = new Set(locales.map((c) => String(c.id)));
           const extras = remotas
-            .filter((r) => !nombresLocales.has((r.nombre || "").toLowerCase()))
+            .filter(
+              (r) =>
+                !nombresLocales.has((r.nombre || "").toLowerCase()) &&
+                !idsLocales.has(String(r.id))
+            )
             .map((r) => ({ id: String(r.id), nombre: r.nombre, imagen: "/img/portada/cat-1.png" }));
           return [...locales, ...extras];
         });
@@ -186,7 +198,8 @@ function NuevoProducto() {
       );
       setTallas(Array.isArray(prod.tallas) ? prod.tallas : []);
       setColores(Array.isArray(prod.colores) ? prod.colores : []);
-      setImagenActual(prod.imagen || null);
+      setImagenesActuales(prod.imagenes || []);
+      setImagenActual(prod.imagenes?.length ? null : prod.imagen || null);
       setFichaActual(prod.fichaImagen || null);
     });
   }, [id, modoEdicion]);
@@ -220,9 +233,37 @@ function NuevoProducto() {
     setMostrarNuevaCat(false);
   }
 
-  function quitarFoto() {
-    setFoto(null);
-    if (inputFotoRef.current) inputFotoRef.current.value = "";
+  const MAX_FOTOS = 8;
+
+  function agregarFotos(e) {
+    const nuevas = Array.from(e.target.files || []);
+    e.target.value = "";
+    const espacio = MAX_FOTOS - imagenesActuales.length - fotos.length;
+    if (nuevas.length > espacio) {
+      setError(`Un producto admite hasta ${MAX_FOTOS} fotografías.`);
+    }
+    setFotos((prev) => [...prev, ...nuevas.slice(0, Math.max(0, espacio))]);
+  }
+
+  function quitarPendiente(indice) {
+    setFotos((prev) => prev.filter((_, i) => i !== indice));
+  }
+
+  async function hacerPrincipal(imagenId) {
+    try {
+      setImagenesActuales(await marcarImagenPrincipal(id, imagenId));
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function borrarImagen(imagenId) {
+    if (!window.confirm("¿Eliminar esta fotografía?")) return;
+    try {
+      setImagenesActuales(await eliminarImagen(id, imagenId));
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   function quitarFicha() {
@@ -233,6 +274,11 @@ function NuevoProducto() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+
+    if (!modoEdicion && fotos.length === 0) {
+      setError("Agrega al menos una fotografía del producto.");
+      return;
+    }
     setEnviando(true);
 
     try {
@@ -247,24 +293,33 @@ function NuevoProducto() {
         tensionMaxUso: tensionMaxUso ? Math.abs(Number(tensionMaxUso)) : "",
         tallasTexto: tallas.join(", "),
         coloresTexto: colores.join(", "),
-        foto,
+        fotos,
         ficha,
       };
 
       if (modoEdicion) {
-        await actualizarProducto(id, payload);
+        const resultado = await actualizarProducto(id, payload);
+        if (resultado.errorFotos) {
+          setError(`Los datos se guardaron, pero las fotos no se subieron: ${resultado.errorFotos}`);
+          return;
+        }
         navigate("/admin/productos");
         return;
       } else {
-        await crearProducto(payload);
+        const resultado = await crearProducto(payload);
         setGuardado(true);
+        if (resultado.errorFotos) {
+          setError(
+            `El producto se creó, pero las fotos no se subieron: ${resultado.errorFotos}. Edítalo para subirlas de nuevo.`
+          );
+        }
         setCodigo("");
         setNombre("");
         setDescripcion("");
         setTensionMaxUso("");
         setTallas([]);
         setColores([]);
-        quitarFoto();
+        setFotos([]);
         quitarFicha();
       }
     } catch (err) {
@@ -369,8 +424,8 @@ function NuevoProducto() {
               onChange={(e) => setCategoriaId(e.target.value)}
               className={campo}
             >
-              {categorias.map((c) => (
-                <option key={c.id} value={c.id}>
+              {categorias.map((c, i) => (
+                <option key={`${c.id}-${i}`} value={c.id}>
                   {c.nombre}
                 </option>
               ))}
@@ -477,70 +532,104 @@ function NuevoProducto() {
           />
         </div>
 
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1">
-              Foto del producto {modoEdicion && "(opcional si mantienes la actual)"}
-            </label>
-            <input
-              ref={inputFotoRef}
-              type="file"
-              accept="image/*"
-              onChange={(e) => setFoto(e.target.files[0] || null)}
-              className="w-full text-xs text-slate-600"
-              required={!modoEdicion && !imagenActual}
-            />
-            {(foto || imagenActual) && (
-              <div className="mt-2">
-                <img
-                  src={foto ? URL.createObjectURL(foto) : imagenActual}
-                  alt="Vista previa de la foto"
-                  className="w-full h-36 object-contain bg-slate-50 rounded-xl border border-slate-200 p-2"
-                />
-                {foto && (
-                  <button
-                    type="button"
-                    onClick={quitarFoto}
-                    className="mt-1 text-xs text-red-600 hover:text-red-800 font-bold underline"
-                  >
-                    Restaurar foto anterior
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
+        <div>
+          <label className="block text-xs font-bold text-slate-600 mb-1">
+            Fotografías del producto (hasta 8, JPG, PNG o WebP de máx. 5 MB)
+          </label>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            multiple
+            onChange={agregarFotos}
+            className="w-full text-xs text-slate-600"
+          />
 
-          <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1">
-              Ficha técnica (imagen) {modoEdicion && "(opcional)"}
-            </label>
-            <input
-              ref={inputFichaRef}
-              type="file"
-              accept="image/*"
-              onChange={(e) => setFicha(e.target.files[0] || null)}
-              className="w-full text-xs text-slate-600"
-              required={!modoEdicion && !fichaActual}
-            />
-            {(ficha || fichaActual) && (
-              <div className="mt-2">
-                <img
-                  src={ficha ? URL.createObjectURL(ficha) : fichaActual}
-                  alt="Vista previa de la ficha técnica"
-                  className="w-full h-36 object-contain bg-slate-50 rounded-xl border border-slate-200 p-2"
-                />
-                {ficha && (
+          {(imagenesActuales.length > 0 || fotos.length > 0 || imagenActual) && (
+            <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {imagenesActuales.map((img) => (
+                <div key={img.id} className="relative border border-slate-200 rounded-xl p-2 bg-slate-50">
+                  {img.principal && (
+                    <span className="absolute top-1.5 left-1.5 bg-[#facc15] text-[#0b192c] text-[10px] font-extrabold px-2 py-0.5 rounded-full">
+                      Principal
+                    </span>
+                  )}
+                  <img src={img.url} alt="Fotografía del producto" className="w-full h-24 object-contain" />
+                  <div className="flex justify-between mt-1.5 text-[11px] font-bold">
+                    {!img.principal ? (
+                      <button type="button" onClick={() => hacerPrincipal(img.id)} className="text-blue-700 hover:underline">
+                        Hacer principal
+                      </button>
+                    ) : (
+                      <span />
+                    )}
+                    <button type="button" onClick={() => borrarImagen(img.id)} className="text-red-600 hover:underline">
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {fotos.map((f, i) => (
+                <div key={`${f.name}-${i}`} className="relative border border-dashed border-slate-300 rounded-xl p-2 bg-white">
+                  <span className="absolute top-1.5 left-1.5 bg-slate-200 text-slate-700 text-[10px] font-extrabold px-2 py-0.5 rounded-full">
+                    Nueva
+                  </span>
+                  <img src={previas[i]} alt={f.name} className="w-full h-24 object-contain" />
                   <button
                     type="button"
-                    onClick={quitarFicha}
-                    className="mt-1 text-xs text-red-600 hover:text-red-800 font-bold underline"
+                    onClick={() => quitarPendiente(i)}
+                    className="mt-1.5 text-[11px] font-bold text-red-600 hover:underline"
                   >
-                    Restaurar ficha anterior
+                    Quitar
                   </button>
-                )}
-              </div>
-            )}
-          </div>
+                </div>
+              ))}
+
+              {imagenesActuales.length === 0 && imagenActual && (
+                <div className="border border-slate-200 rounded-xl p-2 bg-slate-50">
+                  <img src={imagenActual} alt="Foto anterior" className="w-full h-24 object-contain" />
+                  <p className="mt-1.5 text-[10px] text-slate-500">
+                    Foto anterior, solo visible en este navegador. Súbela de nuevo para que se vea en todos.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+          <p className="text-[11px] text-slate-500 mt-2">
+            La primera fotografía que subas queda como principal; puedes cambiarla después.
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-slate-600 mb-1">
+            Ficha técnica (imagen) {modoEdicion && "(opcional)"}
+          </label>
+          <input
+            ref={inputFichaRef}
+            type="file"
+            accept="image/*"
+            onChange={(e) => setFicha(e.target.files[0] || null)}
+            className="w-full text-xs text-slate-600"
+            required={!modoEdicion && !fichaActual}
+          />
+          {(ficha || fichaActual) && (
+            <div className="mt-2">
+              <img
+                src={ficha ? URL.createObjectURL(ficha) : fichaActual}
+                alt="Vista previa de la ficha técnica"
+                className="w-full h-36 object-contain bg-slate-50 rounded-xl border border-slate-200 p-2"
+              />
+              {ficha && (
+                <button
+                  type="button"
+                  onClick={quitarFicha}
+                  className="mt-1 text-xs text-red-600 hover:text-red-800 font-bold underline"
+                >
+                  Restaurar ficha anterior
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex gap-3 pt-2">

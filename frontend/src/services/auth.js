@@ -49,3 +49,8 @@ export async function verificarCorreo(token) {
 export async function reenviarVerificacion(correo) {
   return pedir("/api/usuarios/reenviar-verificacion/", { metodo: "POST", cuerpo: { correo } });
 }
+
+export async function actualizarPerfil(datos) {
+  const perfil = await pedir("/api/usuarios/perfil/", { metodo: "PATCH", cuerpo: datos });
+  return adaptarUsuario(perfil);
+}

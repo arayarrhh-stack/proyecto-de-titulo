@@ -87,7 +87,7 @@ def calcular_precio_unitario_venta(costo_unitario, margen_porcentaje, recargo_un
 
 
 @transaction.atomic
-def crear_solicitud_cotizacion(cliente, items, observaciones="", canal_origen=CanalOrigen.PORTAL):
+def crear_solicitud_cotizacion(cliente, items, observaciones="", canal_origen=CanalOrigen.PORTAL, direccion_despacho=""):
     """Crea una solicitud con folio único y estado inicial Recibida (HU-20, HU-22, RF-28)."""
     if not items:
         raise ValidationError("La solicitud debe contener al menos un producto.")
@@ -98,6 +98,7 @@ def crear_solicitud_cotizacion(cliente, items, observaciones="", canal_origen=Ca
         canal_origen=canal_origen,
         estado=EstadoSolicitud.RECIBIDA,
         observaciones=str(observaciones)[:1000].strip(),
+        direccion_despacho=str(direccion_despacho)[:255].strip(),
     )
 
     for item in items:

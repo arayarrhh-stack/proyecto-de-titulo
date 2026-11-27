@@ -31,13 +31,16 @@ function leerCategoriasLocales() {
 
 function combinarCategorias(base, extras) {
   const mapa = new Map();
+  const idsUsados = new Set();
   [...base, ...extras].forEach((c) => {
     const nombre = (c?.nombre || "").trim();
     if (!nombre) return;
     const clave = nombre.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
-    if (!mapa.has(clave)) {
-      mapa.set(clave, { id: String(c.id || nombre), nombre });
-    }
+    const id = String(c.id || nombre);
+    // Omite repetidos por nombre y también los que chocan por id
+    if (mapa.has(clave) || idsUsados.has(id)) return;
+    idsUsados.add(id);
+    mapa.set(clave, { id, nombre });
   });
   return Array.from(mapa.values());
 }

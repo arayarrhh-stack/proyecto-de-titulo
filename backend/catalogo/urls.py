@@ -18,6 +18,8 @@ from .views import (
     ProductoViewSet,
     ProveedorAdminListCreateView,
     ValidarFichaTecnicaView,
+    ProductoAdminImagenesView,
+    ProductoAdminImagenDetalleView,
 )
 
 # Agrupa los nombres de estas rutas bajo "catalogo" para distinguirlas
@@ -56,5 +58,15 @@ urlpatterns = [
         "admin/productos/<int:producto_id>/validar-ficha/",
         ValidarFichaTecnicaView.as_view(),
         name="admin-producto-validar-ficha",
+    ),
+        path(
+        "admin/productos/<int:producto_id>/imagenes/",
+        ProductoAdminImagenesView.as_view(),
+        name="admin-producto-imagenes",
+    ),
+    path(
+        "admin/productos/<int:producto_id>/imagenes/<int:imagen_id>/",
+        ProductoAdminImagenDetalleView.as_view(),
+        name="admin-producto-imagen-detalle",
     ),
 ] + router.urls

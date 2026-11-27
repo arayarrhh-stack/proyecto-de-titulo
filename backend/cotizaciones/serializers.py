@@ -50,6 +50,7 @@ class SolicitudSerializer(serializers.ModelSerializer):
             "canal_origen",
             "estado",
             "observaciones",
+            "direccion_despacho",
             "creado_en",
             "actualizado_en",
             "cliente_nombre",
@@ -228,6 +229,9 @@ class PedidoAdminSerializer(serializers.ModelSerializer):
     """Incluye costo_total_neto y margen_real_neto solo para el rol Administrador (HU-27, RF-38)."""
 
     despacho = DespachoSerializer(read_only=True)
+    direccion_despacho_cliente = serializers.CharField(
+        source="cotizacion.solicitud.direccion_despacho", read_only=True
+    )
     pagos = PagoAdminSerializer(many=True, read_only=True)
     ordenes_compra_proveedor = OrdenCompraProveedorAdminSerializer(many=True, read_only=True)
 

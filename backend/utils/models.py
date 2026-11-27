@@ -45,3 +45,23 @@ class Notificacion(models.Model):
 
     def __str__(self):
         return f"Para {self.destinatario_id}: {self.tipo}"
+
+
+class MensajeContacto(models.Model):
+    """RF 046: consulta enviada desde el formulario de contacto de la página de inicio."""
+
+    nombre = models.CharField(max_length=150)
+    empresa = models.CharField(max_length=150, blank=True, default="")
+    rut_empresa = models.CharField(max_length=20, blank=True, default="")
+    correo = models.EmailField()
+    asunto = models.CharField(max_length=100, blank=True, default="")
+    sucursal = models.CharField(max_length=100, blank=True, default="")
+    mensaje = models.TextField()
+    leido = models.BooleanField(default=False)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-creado_en", "-id"]
+
+    def __str__(self):
+        return f"{self.nombre} ({self.asunto})"

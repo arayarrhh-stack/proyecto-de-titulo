@@ -4,6 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 const ENLACES_CLIENTE = [
   { to: "/cliente/mis-cotizaciones", label: "Mis Cotizaciones" },
   { to: "/cliente/mis-pedidos", label: "Mis Pedidos" },
+  { to: "/cliente/mi-perfil", label: "Mi Perfil" },
 ];
 
 export default function ClienteLayout() {

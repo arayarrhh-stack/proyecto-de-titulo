@@ -6,6 +6,7 @@ const ENLACES = [
   { to: "/admin/cotizaciones", label: "Solicitudes de Cotización" },
   { to: "/admin/solicitudes/nueva", label: "Registrar Solicitud" },
   { to: "/admin/pedidos", label: "Gestión de Pedidos" },
+  { to: "/admin/clientes", label: "Clientes" },
   { to: "/admin/productos/nuevo", label: "Agregar Producto" },
   { to: "/admin/productos", label: "Editar productos en Catálogo", end: true },
   { to: "/admin/categorias", label: "Editar Categorías" },

@@ -20,6 +20,7 @@ import ClienteLayout from "./pages/cliente/ClienteLayout";
 import Cotizacion from "./pages/cliente/Cotizacion";
 import MisCotizaciones from "./pages/cliente/MisCotizaciones";
 import Pedidos from "./pages/cliente/Pedidos";
+import MiPerfil from "./pages/cliente/MiPerfil";
 
 import AdminLayout from "./pages/admin/AdminLayout";
 import DashboardAdmin from "./pages/admin/DashboardAdmin";
@@ -29,6 +30,8 @@ import NuevoProducto from "./pages/admin/NuevoProducto";
 import AdminProductos from "./pages/admin/AdminProductos";
 import AdminCategorias from "./pages/admin/AdminCategorias";
 import AdminMensajes from "./pages/admin/AdminMensajes";
+import AdminClientes from "./pages/admin/AdminClientes";
+import AdminClienteDetalle from "./pages/admin/AdminClienteDetalle";
 
 function ContenidoApp() {
   const location = useLocation();
@@ -74,6 +77,7 @@ function ContenidoApp() {
             <Route path="cotizacion" element={<Navigate to="/cotizacion" replace />} />
             <Route path="mis-cotizaciones" element={<MisCotizaciones />} />
             <Route path="mis-pedidos" element={<Pedidos />} />
+            <Route path="mi-perfil" element={<MiPerfil />} />
           </Route>
 
           <Route
@@ -106,6 +110,8 @@ function ContenidoApp() {
             <Route path="cotizaciones" element={<AdminCotizaciones />} />
             <Route path="solicitudes/nueva" element={<NuevaSolicitud />} />
             <Route path="pedidos" element={<Pedidos admin />} />
+            <Route path="clientes" element={<AdminClientes />} />
+            <Route path="clientes/:id" element={<AdminClienteDetalle />} />
             <Route path="productos" element={<AdminProductos />} />
             <Route path="productos/nuevo" element={<NuevoProducto />} />
             <Route path="productos/editar/:id" element={<NuevoProducto />} />
