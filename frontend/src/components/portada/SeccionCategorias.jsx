@@ -46,9 +46,9 @@ export default function SeccionCategorias() {
       </div>
 
       <div className="grid gap-5 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
-        {categorias.map((c) => (
+        {categorias.map((c, i) => (
           <Link
-            key={c.id}
+            key={`${c.id}-${i}`}
             to={`/catalogo?categoria=${encodeURIComponent(c.id)}`}
             className="bg-slate-50 hover:bg-white border border-slate-200 hover:border-[#facc15] rounded-2xl p-4 shadow-sm hover:shadow-md transition flex flex-col items-center text-center gap-3"
           >
