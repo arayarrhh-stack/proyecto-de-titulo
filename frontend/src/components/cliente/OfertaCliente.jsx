@@ -1,5 +1,5 @@
 ﻿import { useState } from "react";
-import { responderOferta } from "../../services/solicitudes";
+import { responderOferta, descargarPdfOferta } from "../../services/solicitudes";
 
 function pesos(valor) {
   return `$${Math.round(Number(valor)).toLocaleString("es-CL")}`;
@@ -45,12 +45,31 @@ export default function OfertaCliente({ oferta, estado, onRespondida }) {
     responder({ accion: "aceptar", oc_cliente_numero: oc.trim() });
   }
 
+
+    async function descargarPdf() {
+    setError("");
+    try {
+      await descargarPdfOferta(oferta.id, oferta.folio);
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
   return (
     <div className="mt-3 border-t border-slate-200 pt-3 space-y-3">
-      <p className="text-sm font-semibold text-slate-700">
-        Oferta {oferta.folio}
-        <span className="font-normal text-slate-500"> · válida hasta {fecha(oferta.validez_hasta)}</span>
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-slate-700">
+          Oferta {oferta.folio}
+          <span className="font-normal text-slate-500"> · válida hasta {fecha(oferta.validez_hasta)}</span>
+        </p>
+        <button
+          type="button"
+          onClick={descargarPdf}
+          className="text-xs font-bold text-[#0b192c] border border-slate-300 bg-white px-3 py-1.5 rounded-lg hover:bg-slate-50 transition"
+        >
+          Descargar PDF
+        </button>
+      </div>
 
       <table className="w-full text-sm">
         <thead>

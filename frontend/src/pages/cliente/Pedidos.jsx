@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { listarPedidos } from "../../services/solicitudes";
+import { listarPedidos, emitirOrdenCompra, registrarDespacho } from "../../services/solicitudes";
 import LineaTiempoPedido, { etiquetaPedido } from "../../components/cliente/LineaTiempoPedido";
 
 function pesos(valor) {
@@ -22,16 +22,129 @@ function Dato({ etiqueta, valor }) {
   );
 }
 
+function AccionesAdmin({ pedido, onListo }) {
+  const [abierto, setAbierto] = useState(false);
+  const [datos, setDatos] = useState({
+    direccion_despacho: pedido.direccion_despacho_cliente || "",
+  });
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState("");
+
+  if (!["aceptado", "comprado_proveedor", "despachado"].includes(pedido.estado)) return null;
+
+  const emitiendoOC = pedido.estado === "aceptado";
+  const campo = (n) => ({
+    value: datos[n] ?? "",
+    onChange: (e) => setDatos({ ...datos, [n]: e.target.value }),
+  });
+  const clase = "w-full border border-slate-300 rounded-md px-3 py-2 text-sm";
+
+  function abrir() {
+    const d = pedido.despacho;
+    setDatos(
+      d && !emitiendoOC
+        ? {
+            transportista: d.transportista,
+            numero_seguimiento: d.numero_seguimiento,
+            fecha_estimada: d.fecha_estimada ?? "",
+            fecha_entrega: d.fecha_entrega ?? "",
+            nombre_receptor: d.nombre_receptor ?? "",
+          }
+        : { direccion_despacho: pedido.direccion_despacho_cliente || "" }
+    );
+    setError("");
+    setAbierto(true);
+  }
+
+  async function enviar(e) {
+    e.preventDefault();
+    setError("");
+    setEnviando(true);
+    try {
+      if (emitiendoOC) await emitirOrdenCompra(pedido.id, datos);
+      else await registrarDespacho(pedido.id, datos);
+      setAbierto(false);
+      onListo();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  if (!abierto) {
+    return (
+      <div className="flex justify-end border-t border-slate-200 pt-3">
+        <button
+          onClick={abrir}
+          className="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-md hover:bg-blue-700 transition"
+        >
+          {emitiendoOC ? "Emitir OC al proveedor" : "Registrar despacho / entrega"}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={enviar} className="border-t border-slate-200 pt-3 space-y-3">
+      <p className="text-sm font-semibold text-slate-700">
+        {emitiendoOC ? "Orden de compra al proveedor" : "Despacho y entrega"}
+      </p>
+      {emitiendoOC ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <input className={clase} placeholder="Proveedor" {...campo("proveedor_nombre")} required />
+          <input className={clase} placeholder="Dirección de despacho" {...campo("direccion_despacho")} required />
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <input className={clase} placeholder="Transportista" {...campo("transportista")} required />
+          <input className={clase} placeholder="N° de seguimiento" {...campo("numero_seguimiento")} required />
+          <label className="text-xs text-slate-500">
+            Entrega estimada
+            <input type="date" className={clase} {...campo("fecha_estimada")} />
+          </label>
+          <label className="text-xs text-slate-500">
+            Fecha de entrega (si ya se entregó)
+            <input type="date" className={clase} {...campo("fecha_entrega")} />
+          </label>
+          <input
+            className={`${clase} sm:col-span-2`}
+            placeholder="Quién recibió (si ya se entregó)"
+            {...campo("nombre_receptor")}
+          />
+        </div>
+      )}
+      {error && <p className="text-sm text-red-700">{error}</p>}
+      <div className="flex justify-end gap-2">
+        <button type="button" onClick={() => setAbierto(false)} className="text-sm px-4 py-2 rounded-md border border-slate-300">
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          disabled={enviando}
+          className="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
+        >
+          {enviando ? "Guardando…" : "Guardar"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 function Pedidos({ admin = false }) {
   const [pedidos, setPedidos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
 
+  function cargar() {
+  return listarPedidos()
+    .then(setPedidos)
+    .catch((e) => setError(e.message))
+    .finally(() => setCargando(false));
+  }
+
   useEffect(() => {
-    listarPedidos()
-      .then(setPedidos)
-      .catch((e) => setError(e.message))
-      .finally(() => setCargando(false));
+    cargar();
   }, []);
 
   return (
@@ -70,11 +183,11 @@ function Pedidos({ admin = false }) {
                 </p>
               </div>
               <span className="text-xs font-semibold px-3 py-1 rounded-full bg-blue-100 text-blue-800 whitespace-nowrap">
-                {etiquetaPedido(p.estado)}
+                {etiquetaPedido(p.estado, admin)}
               </span>
             </div>
 
-            <LineaTiempoPedido estado={p.estado} />
+            <LineaTiempoPedido estado={p.estado} admin={admin} />
 
             <div className="grid gap-4 sm:grid-cols-3 border-t border-slate-200 pt-3">
               <Dato etiqueta="Orden de compra" valor={p.oc_cliente_numero} />
@@ -98,6 +211,7 @@ function Pedidos({ admin = false }) {
                 )}
               </div>
             )}
+            {admin && <AccionesAdmin pedido={p} onListo={cargar} />}
           </div>
         ))}
       </div>

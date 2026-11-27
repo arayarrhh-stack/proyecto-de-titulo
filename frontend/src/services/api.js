@@ -57,3 +57,26 @@ export async function pedir(ruta, { metodo = "GET", cuerpo } = {}) {
   return datos;
 }
 
+
+export async function descargarArchivo(ruta) {
+  const rutaCompleta = ruta.startsWith("http") ? ruta : `${URL_BACKEND}${ruta}`;
+
+  let respuesta;
+  try {
+    respuesta = await fetch(rutaCompleta, { credentials: "include" });
+  } catch {
+    throw new ErrorApi("No se pudo conectar con el servidor. ¿Está corriendo el backend?", 0);
+  }
+
+  if (!respuesta.ok) {
+    let mensaje = "No se pudo descargar el documento.";
+    try {
+      const datos = await respuesta.json();
+      mensaje = datos?.detalle || datos?.detail || mensaje;
+    } catch {
+      /* respuesta sin cuerpo */
+    }
+    throw new ErrorApi(mensaje, respuesta.status);
+  }
+  return respuesta.blob();
+}

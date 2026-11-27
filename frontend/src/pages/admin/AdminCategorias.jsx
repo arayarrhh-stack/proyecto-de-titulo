@@ -36,32 +36,35 @@ function leerCategoriasLocales() {
 
 function combinarSinDuplicados(locales, remotas) {
   const mapa = new Map();
+  const idsUsados = new Set();
 
   // Primero cargamos las locales (conservan sus imágenes personalizadas)
   locales.forEach((c) => {
     const clave = normalizarClave(c?.nombre);
     if (!clave) return;
-    if (!mapa.has(clave)) {
-      mapa.set(clave, {
-        id: String(c.id || Date.now()),
-        nombre: c.nombre.trim(),
-        imagen: c.imagen || "/img/portada/cat-1.png",
-      });
-    }
+    const id = String(c.id || Date.now());
+    if (mapa.has(clave) || idsUsados.has(id)) return;
+    idsUsados.add(id);
+    mapa.set(clave, {
+      id,
+      nombre: c.nombre.trim(),
+      imagen: c.imagen || "/img/portada/cat-1.png",
+    });
   });
 
-  // Luego agregamos cualquier categoría que venga del backend y no exista aún
+  // Luego agregamos las del backend que no existan aún (por nombre ni por id)
   remotas.forEach((r) => {
     const clave = normalizarClave(r?.nombre);
     if (!clave) return;
-    if (!mapa.has(clave)) {
-      mapa.set(clave, {
-        id: String(r.id || clave),
-        nombre: r.nombre.trim(),
-        imagen: r.imagen || "/img/portada/cat-1.png",
-        desdeBackend: true,
-      });
-    }
+    const id = String(r.id || clave);
+    if (mapa.has(clave) || idsUsados.has(id)) return;
+    idsUsados.add(id);
+    mapa.set(clave, {
+      id,
+      nombre: r.nombre.trim(),
+      imagen: r.imagen || "/img/portada/cat-1.png",
+      desdeBackend: true,
+    });
   });
 
   return Array.from(mapa.values());
@@ -249,9 +252,9 @@ export default function AdminCategorias() {
 
       {/* Grilla de categorías actuales */}
       <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
-        {categorias.map((c) => (
+        {categorias.map((c, i) => (
           <div
-            key={c.id}
+            key={`${c.id}-${i}`}
             className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col justify-between gap-3"
           >
             <div className="flex items-center gap-3">

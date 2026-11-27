@@ -74,6 +74,14 @@ function archivoABase64(archivo) {
   });
 }
 
+export function adaptarImagenes(lista) {
+  return (lista ?? []).map((i) => ({
+    id: i.id,
+    url: i.url_imagen,
+    principal: Boolean(i.es_principal),
+  }));
+}
+
 export function adaptarProducto(p) {
   const extras = leerExtras()[String(p.id)] || {};
   const principal = p.imagenes?.find((i) => i.es_principal) ?? p.imagenes?.[0];
@@ -90,9 +98,11 @@ export function adaptarProducto(p) {
     versionFicha: p.version_ficha ?? "1.0",
     fechaVigenciaFicha: p.fecha_vigencia_ficha ?? "",
     nombre: p.nombre,
+    destacado: Boolean(p.destacado),
     categoria: p.categoria_nombre ?? p.categoria ?? extras.categoria ?? "",
     categoriaId: p.categoria_id ?? (typeof p.categoria === "number" ? p.categoria : extras.categoriaId ?? ""),
     imagen: principal?.url_imagen ?? p.imagen ?? extras.imagen ?? null,
+    imagenes: adaptarImagenes(p.imagenes),
     fichaImagen: p.fichaImagen ?? extras.fichaImagen ?? null,
     tallas: unicos(tallasRemotas.length ? tallasRemotas : extras.tallas),
     colores: unicos(coloresRemotos.length ? coloresRemotos : extras.colores),
@@ -106,10 +116,11 @@ export function adaptarProducto(p) {
   };
 }
 
-export async function listarProductos({ busqueda = "", categoria = "", pagina = 1 } = {}) {
+export async function listarProductos({ busqueda = "", categoria = "", pagina = 1, destacado = false } = {}) {
   const params = new URLSearchParams();
   if (busqueda) params.set("busqueda", busqueda);
   if (categoria) params.set("categoria", categoria);
+  if (destacado) params.set("destacado", "true");
   params.set("page", pagina);
 
   const datos = await pedir(`/api/catalogo/productos/?${params}`);
@@ -123,13 +134,8 @@ export async function listarProductos({ busqueda = "", categoria = "", pagina = 
 }
 
 export async function obtenerProductoPorId(id) {
-  try {
-    const p = await pedir(`/api/catalogo/productos/${id}/`);
-    return adaptarProducto(p);
-  } catch {
-    const { productos } = await listarProductos();
-    return productos.find((p) => String(p.id) === String(id)) || null;
-  }
+  const lista = await listarProductosAdmin();
+  return lista.find((p) => String(p.id) === String(id)) || null;
 }
 
 export async function crearProducto(datosFormulario) {
@@ -144,7 +150,7 @@ export async function crearProducto(datosFormulario) {
     tensionMaxUso,
     tallasTexto,
     coloresTexto,
-    foto,
+    fotos = [],
     ficha,
   } = datosFormulario;
 
@@ -165,21 +171,28 @@ export async function crearProducto(datosFormulario) {
     cuerpo,
   });
 
-
-  const imagenBase64 = await archivoABase64(foto);
   const fichaBase64 = await archivoABase64(ficha);
 
   guardarExtra(creado.id, {
     categoria: categoriaNombre || "",
     categoriaId: cuerpo.categoria,
-    imagen: imagenBase64,
     fichaImagen: fichaBase64,
     normativa: cuerpo.normativa,
     tallas: tallasTexto ? tallasTexto.split(",").map((x) => x.trim()).filter(Boolean) : [],
     colores: coloresTexto ? coloresTexto.split(",").map((x) => x.trim()).filter(Boolean) : [],
   });
 
-  return adaptarProducto(creado);
+  // Las fotografías van al backend (RF 010). Si fallan, el producto ya quedó creado.
+  let errorFotos = null;
+  if (fotos.length > 0) {
+    try {
+      await subirImagenes(creado.id, fotos);
+    } catch (e) {
+      errorFotos = e.message;
+    }
+  }
+
+  return { ...adaptarProducto(creado), errorFotos };
 }
 
 export async function actualizarProducto(id, datosFormulario) {
@@ -194,7 +207,7 @@ export async function actualizarProducto(id, datosFormulario) {
     tensionMaxUso,
     tallasTexto,
     coloresTexto,
-    foto,
+    fotos = [],
     ficha,
   } = datosFormulario;
 
@@ -215,13 +228,11 @@ export async function actualizarProducto(id, datosFormulario) {
   });
 
   const extraActual = leerExtras()[String(id)] || {};
-  const nuevaImagen = foto ? await archivoABase64(foto) : extraActual.imagen ?? null;
   const nuevaFicha = ficha ? await archivoABase64(ficha) : extraActual.fichaImagen ?? null;
 
   guardarExtra(id, {
     categoria: categoriaNombre || extraActual.categoria || "",
     categoriaId: cuerpo.categoria,
-    imagen: nuevaImagen,
     fichaImagen: nuevaFicha,
     normativa: cuerpo.normativa,
     tallas: tallasTexto !== undefined
@@ -232,7 +243,16 @@ export async function actualizarProducto(id, datosFormulario) {
       : extraActual.colores || [],
   });
 
-  return adaptarProducto(actualizado);
+  let errorFotos = null;
+  if (fotos.length > 0) {
+    try {
+      await subirImagenes(id, fotos);
+    } catch (e) {
+      errorFotos = e.message;
+    }
+  }
+
+  return { ...adaptarProducto(actualizado), errorFotos };
 }
 
 export async function eliminarProducto(id) {
@@ -266,3 +286,44 @@ export async function validarFicha(id, { estado, fuente, version, vigencia }) {
   });
 }
 
+
+export function marcarDestacado(id, valor) {
+  return pedir(`/api/catalogo/admin/productos/${id}/`, {
+    metodo: "PATCH",
+    cuerpo: { destacado: valor },
+  });
+}
+
+
+export function cambiarActivo(id, valor) {
+  return pedir(`/api/catalogo/admin/productos/${id}/`, {
+    metodo: "PATCH",
+    cuerpo: { activo: valor },
+  });
+}
+
+export async function subirImagenes(productoId, archivos) {
+  const datos = new FormData();
+  archivos.forEach((a) => datos.append("imagenes", a));
+  const lista = await pedir(`/api/catalogo/admin/productos/${productoId}/imagenes/`, {
+    metodo: "POST",
+    cuerpo: datos,
+  });
+  return adaptarImagenes(lista);
+}
+
+export async function marcarImagenPrincipal(productoId, imagenId) {
+  const lista = await pedir(
+    `/api/catalogo/admin/productos/${productoId}/imagenes/${imagenId}/`,
+    { metodo: "PATCH", cuerpo: {} }
+  );
+  return adaptarImagenes(lista);
+}
+
+export async function eliminarImagen(productoId, imagenId) {
+  const lista = await pedir(
+    `/api/catalogo/admin/productos/${productoId}/imagenes/${imagenId}/`,
+    { metodo: "DELETE" }
+  );
+  return adaptarImagenes(lista);
+}

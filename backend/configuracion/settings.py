@@ -88,3 +88,8 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 24,  # HU-15: tamaño de página definido en sus criterios de aceptación.
 }
+
+# Fotos de productos (RF 010). Carpeta distinta de "media" a propósito: así los PDF de
+# cotizaciones y órdenes de compra (que llevan costos) nunca quedan accesibles por URL.
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media_publica"

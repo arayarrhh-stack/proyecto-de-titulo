@@ -27,9 +27,7 @@ export default function DashboardAdmin() {
   const [solicitudes, setSolicitudes] = useState([]);
   const [pedidos, setPedidos] = useState([]);
   const [totalProductos, setTotalProductos] = useState(() => leerProductosLocales().length);
-  const [mensajesNoLeidos] = useState(
-    () => listarMensajes().filter((m) => !m.leido).length
-  );
+  const [mensajesNoLeidos, setMensajesNoLeidos] = useState(0);
 
   // Cada consulta se actualiza de forma independiente en segundo plano
   useEffect(() => {
@@ -46,6 +44,10 @@ export default function DashboardAdmin() {
         setTotalProductos(prods.total ?? prods.productos?.length ?? leerProductosLocales().length)
       )
       .catch(() => {});
+
+    listarMensajes()
+      .then((ms) => setMensajesNoLeidos(ms.filter((m) => !m.leido).length))
+      .catch(() => {});
   }, []);
 
   const pendientes = solicitudes.filter(
@@ -53,6 +55,26 @@ export default function DashboardAdmin() {
   ).length;
 
   const ultimasSolicitudes = solicitudes.slice(0, 5);
+
+    // RF 006: cotizaciones solicitadas en los últimos 30 días, por día
+  const DIAS = 30;
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  const porDia = Array.from({ length: DIAS }, (_, i) => {
+    const fecha = new Date(hoy);
+    fecha.setDate(hoy.getDate() - (DIAS - 1 - i));
+    return { fecha, cantidad: 0 };
+  });
+  solicitudes.forEach((s) => {
+    const creada = new Date(s.creado_en);
+    if (Number.isNaN(creada.getTime())) return;
+    creada.setHours(0, 0, 0, 0);
+    const indice = DIAS - 1 - Math.round((hoy - creada) / 86400000);
+    if (indice >= 0 && indice < DIAS) porDia[indice].cantidad += 1;
+  });
+  const total30 = porDia.reduce((suma, d) => suma + d.cantidad, 0);
+  const maximo30 = Math.max(1, ...porDia.map((d) => d.cantidad));
+  const formatoDia = (f) => f.toLocaleDateString("es-CL", { day: "2-digit", month: "short" });
 
   return (
     <div className="max-w-6xl space-y-8">
@@ -64,7 +86,7 @@ export default function DashboardAdmin() {
       </div>
 
       {/* 5 Tarjetas de métricas instantáneas */}
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-6">
         <TarjetaKpi
           titulo="Solicitudes Totales"
           valor={solicitudes.length}
@@ -75,6 +97,13 @@ export default function DashboardAdmin() {
           titulo="Pendientes"
           valor={pendientes}
           detalle="En estado Recibida"
+          to="/admin/cotizaciones"
+        />
+
+        <TarjetaKpi
+          titulo="Últimos 30 días"
+          valor={total30}
+          detalle="Cotizaciones solicitadas"
           to="/admin/cotizaciones"
         />
         <TarjetaKpi
@@ -97,6 +126,46 @@ export default function DashboardAdmin() {
           destacado={mensajesNoLeidos > 0}
         />
       </div>
+
+      {/* RF 006: resumen visual de los últimos 30 días */}
+      <section className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+        <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
+          <h2 className="font-extrabold text-[#0b192c] text-base">
+            Cotizaciones solicitadas en los últimos 30 días
+          </h2>
+          <p className="text-xs text-slate-500">
+            <span className="font-black text-[#0b192c] text-lg">{total30}</span> en total
+          </p>
+        </div>
+        {total30 === 0 ? (
+          <p className="text-sm text-slate-500">
+            Aún no hay solicitudes en este período.
+          </p>
+        ) : (
+          <>
+            <div className="flex items-end gap-1 h-28">
+              {porDia.map((d, i) => (
+                <div
+                  key={i}
+                  className="flex-1 flex flex-col justify-end h-full"
+                  title={`${formatoDia(d.fecha)}: ${d.cantidad}`}
+                >
+                  <div
+                    className={`w-full rounded-t ${
+                      d.cantidad > 0 ? "bg-[#facc15]" : "bg-slate-100"
+                    }`}
+                    style={{ height: `${d.cantidad > 0 ? Math.max(8, (d.cantidad / maximo30) * 100) : 4}%` }}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-between text-[11px] text-slate-400 mt-2">
+              <span>{formatoDia(porDia[0].fecha)}</span>
+              <span>Hoy</span>
+            </div>
+          </>
+        )}
+      </section>
 
       {/* Tabla de últimas solicitudes */}
       <section className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">

@@ -1,5 +1,5 @@
 ﻿import { useState } from "react";
-import { guardarMensaje } from "../../services/mensajes";
+import { enviarMensaje } from "../../services/mensajes";
 
 const ASUNTOS = [
   "Solicitud de Cotización",
@@ -68,21 +68,25 @@ export default function SeccionPorQueElegirnos() {
     return Object.keys(e).length === 0;
   }
 
-  function manejarEnvio(ev) {
+  async function manejarEnvio(ev) {
     ev.preventDefault();
     if (!validar()) return;
 
-    guardarMensaje(form);
-    setEnviado(true);
-    setForm({
-      nombre: "",
-      empresa: "",
-      rutEmpresa: "",
-      email: "",
-      asunto: "",
-      sucursal: "",
-      mensaje: "",
-    });
+    try {
+      await enviarMensaje(form);
+      setEnviado(true);
+      setForm({
+        nombre: "",
+        empresa: "",
+        rutEmpresa: "",
+        email: "",
+        asunto: "",
+        sucursal: "",
+        mensaje: "",
+      });
+    } catch (err) {
+      setErrores({ mensaje: err.message });
+    }
   }
 
   const inputBase =

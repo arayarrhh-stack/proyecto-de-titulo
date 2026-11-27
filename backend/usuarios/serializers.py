@@ -83,3 +83,31 @@ class LoginSerializer(serializers.Serializer):
 
     correo = serializers.EmailField()
     password = serializers.CharField(write_only=True)
+
+
+class ActualizarPerfilSerializer(serializers.Serializer):
+    """Datos que el cliente puede modificar en 'Mi perfil' (RF 004)."""
+
+    nombre = serializers.CharField(max_length=150, required=False)
+    cargo = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    razon_social = serializers.CharField(max_length=150, required=False)
+    direccion = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    telefono = serializers.CharField(max_length=30, required=False, allow_blank=True)
+
+    def validate_nombre(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("El nombre de contacto no puede quedar vacío.")
+        return value
+
+    def validate_razon_social(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("La razón social no puede quedar vacía.")
+        return value
+
+    def validate_telefono(self, value):
+        value = value.strip()
+        if value and not re.fullmatch(r"[0-9+()\-\s]{6,30}", value):
+            raise serializers.ValidationError("Ingresa un teléfono válido (solo números, +, - y paréntesis).")
+        return value

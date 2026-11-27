@@ -5,6 +5,10 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+
+from .models import MensajeContacto
 
 from asistente_ia.models import Conversacion, SolicitudAsesoria
 from cotizaciones.models import EstadoSolicitud, LineaSolicitud, Pedido, Solicitud
@@ -181,7 +185,7 @@ class ContactoInstitucionalView(APIView):
             )
 
         nombre = str(request.data.get("nombre", "")).strip()
-        correo = str(request.data.get("correo", "")).strip()
+        correo = str(request.data.get("correo") or request.data.get("email") or "").strip()
         mensaje = str(request.data.get("mensaje", "")).strip()
 
         if not nombre or "@" not in correo or not mensaje:
@@ -190,12 +194,90 @@ class ContactoInstitucionalView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        resultado = enviar_correo_transaccional(
-            destinatario_email="contacto@acomse.cl",
-            asunto=f"Consulta web de {nombre}",
-            contenido_texto=f"Correo: {correo}\nMensaje:\n{mensaje}",
+        contacto = MensajeContacto.objects.create(
+            nombre=nombre[:150],
+            empresa=str(request.data.get("empresa", "")).strip()[:150],
+            rut_empresa=str(request.data.get("rut_empresa", "")).strip()[:20],
+            correo=correo[:254],
+            asunto=str(request.data.get("asunto", "")).strip()[:100],
+            sucursal=str(request.data.get("sucursal", "")).strip()[:100],
+            mensaje=mensaje,
         )
+
+        # El aviso por correo es complementario: si falla, la consulta igual queda guardada.
+        modo_envio = "no_enviado"
+        try:
+            resultado = enviar_correo_transaccional(
+                destinatario_email="contacto@acomse.cl",
+                asunto=f"Consulta web de {contacto.nombre}",
+                contenido_texto=(
+                    f"Empresa: {contacto.empresa} ({contacto.rut_empresa})\n"
+                    f"Correo: {contacto.correo}\nAsunto: {contacto.asunto}\n"
+                    f"Sucursal: {contacto.sucursal}\nMensaje:\n{contacto.mensaje}"
+                ),
+            )
+            modo_envio = resultado["modo"]
+        except Exception:
+            pass
+
         return Response(
-            {"mensaje": "Consulta recibida correctamente.", "envio": resultado["modo"]},
+            {"mensaje": "Consulta recibida correctamente.", "envio": modo_envio},
             status=status.HTTP_201_CREATED,
         )
+
+def _serializar_mensaje(m):
+    return {
+        "id": m.id,
+        "nombre": m.nombre,
+        "empresa": m.empresa,
+        "rutEmpresa": m.rut_empresa,
+        "email": m.correo,
+        "asunto": m.asunto,
+        "sucursal": m.sucursal,
+        "mensaje": m.mensaje,
+        "leido": m.leido,
+        "fecha": timezone.localtime(m.creado_en).strftime("%d-%m-%Y %H:%M"),
+    }
+
+
+class MensajesContactoAdminView(APIView):
+    """RF 046: bandeja de consultas de contacto para la administradora."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not _es_administradora(request.user):
+            return Response(
+                {"detalle": "Solo administración puede ver las consultas."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return Response(
+            [_serializar_mensaje(m) for m in MensajeContacto.objects.all()],
+            status=status.HTTP_200_OK,
+        )
+
+
+class MensajeContactoDetalleView(APIView):
+    """Marcar como atendido o eliminar una consulta."""
+
+    permission_classes = [IsAuthenticated]
+
+    def _obtener(self, request, mensaje_id):
+        if not _es_administradora(request.user):
+            return None
+        return get_object_or_404(MensajeContacto, id=mensaje_id)
+
+    def patch(self, request, mensaje_id):
+        mensaje = self._obtener(request, mensaje_id)
+        if mensaje is None:
+            return Response({"detalle": "Sin permiso."}, status=status.HTTP_403_FORBIDDEN)
+        mensaje.leido = bool(request.data.get("leido", mensaje.leido))
+        mensaje.save(update_fields=["leido"])
+        return Response(_serializar_mensaje(mensaje), status=status.HTTP_200_OK)
+
+    def delete(self, request, mensaje_id):
+        mensaje = self._obtener(request, mensaje_id)
+        if mensaje is None:
+            return Response({"detalle": "Sin permiso."}, status=status.HTTP_403_FORBIDDEN)
+        mensaje.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
