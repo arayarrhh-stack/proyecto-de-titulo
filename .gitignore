@@ -32,3 +32,4 @@ temps/
 *.temp
 *~
 backend/media/
+backend/media_publica/

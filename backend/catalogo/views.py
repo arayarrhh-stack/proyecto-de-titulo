@@ -7,6 +7,11 @@ urls.py dirige aquí las consultas. Esta vista busca los datos en models.py
 y usa serializers.py para preparar la respuesta.
 Catalogo.jsx enviará el texto del buscador a esta API y mostrará sus resultados.
 """
+import uuid
+
+from django.conf import settings
+from django.core.files.storage import default_storage
+from django.db.models import Max
 from django.core.exceptions import PermissionDenied, ValidationError
 # HU-17: Q permite unir las condiciones de búsqueda por nombre y por código.
 from django.db.models import Q
@@ -20,7 +25,7 @@ from rest_framework.views import APIView
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
 # HU-07 / HU-17: importa los modelos del catálogo técnico.
-from .models import Categoria, EstadoValidacionFicha, Producto, Proveedor
+from .models import Categoria, EstadoValidacionFicha, ImagenProducto, Producto, Proveedor
 # HU-15 / HU-16: importa la conversión de productos a los campos públicos y administrativos.
 from .serializers import (
     CategoriaAdminSerializer,
@@ -28,6 +33,7 @@ from .serializers import (
     ProductoAdminSerializer,
     ProductoSerializer,
     ProveedorAdminSerializer,
+    ImagenProductoSerializer,
 )
 from .services import (
     actualizar_producto,
@@ -238,4 +244,127 @@ class ValidarFichaTecnicaView(APIView):
 
         return Response(
             ProductoAdminSerializer(actualizado).data, status=status.HTTP_200_OK
+        )
+
+
+MAX_BYTES_IMAGEN = 5 * 1024 * 1024
+MAX_IMAGENES_PRODUCTO = 8
+
+
+def _extension_si_es_imagen(archivo):
+    """Devuelve la extensión según el contenido real del archivo, o None si no es JPG/PNG/WebP."""
+    cabecera = archivo.read(12)
+    archivo.seek(0)
+    if cabecera.startswith(b"\xff\xd8\xff"):
+        return ".jpg"
+    if cabecera.startswith(b"\x89PNG\r\n\x1a\n"):
+        return ".png"
+    if cabecera[:4] == b"RIFF" and cabecera[8:12] == b"WEBP":
+        return ".webp"
+    return None
+
+
+class ProductoAdminImagenesView(APIView):
+    """RF 010: la administradora sube una o más fotografías de un producto."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, producto_id):
+        if not _es_administradora(request.user):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        producto = get_object_or_404(Producto, id=producto_id)
+
+        archivos = request.FILES.getlist("imagenes")
+        if not archivos:
+            return Response(
+                {"detalle": "Seleccione al menos una fotografía."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if producto.imagenes.count() + len(archivos) > MAX_IMAGENES_PRODUCTO:
+            return Response(
+                {"detalle": f"Un producto admite hasta {MAX_IMAGENES_PRODUCTO} fotografías."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Se valida todo antes de guardar nada, para no dejar subidas a medias.
+        extensiones = []
+        for archivo in archivos:
+            if archivo.size > MAX_BYTES_IMAGEN:
+                return Response(
+                    {"detalle": f"«{archivo.name}» supera los 5 MB."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            extension = _extension_si_es_imagen(archivo)
+            if extension is None:
+                return Response(
+                    {"detalle": f"«{archivo.name}» no es una imagen JPG, PNG o WebP."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            extensiones.append(extension)
+
+        hay_principal = producto.imagenes.filter(es_principal=True).exists()
+        orden = (producto.imagenes.aggregate(m=Max("orden"))["m"] or 0) + 1
+        for archivo, extension in zip(archivos, extensiones):
+            nombre = default_storage.save(
+                f"productos/{producto.id}-{uuid.uuid4().hex}{extension}", archivo
+            )
+            ImagenProducto.objects.create(
+                producto=producto,
+                url_imagen=request.build_absolute_uri(settings.MEDIA_URL + nombre),
+                es_principal=not hay_principal,
+                orden=orden,
+            )
+            hay_principal = True
+            orden += 1
+
+        return Response(
+            ImagenProductoSerializer(producto.imagenes.all(), many=True).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ProductoAdminImagenDetalleView(APIView):
+    """Marcar una fotografía como principal o eliminarla."""
+
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, producto_id, imagen_id):
+        if not _es_administradora(request.user):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        imagen = get_object_or_404(ImagenProducto, id=imagen_id, producto_id=producto_id)
+        ImagenProducto.objects.filter(producto_id=producto_id).update(es_principal=False)
+        imagen.es_principal = True
+        imagen.save(update_fields=["es_principal"])
+        return Response(
+            ImagenProductoSerializer(
+                ImagenProducto.objects.filter(producto_id=producto_id), many=True
+            ).data,
+            status=status.HTTP_200_OK,
+        )
+
+    def delete(self, request, producto_id, imagen_id):
+        if not _es_administradora(request.user):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        imagen = get_object_or_404(ImagenProducto, id=imagen_id, producto_id=producto_id)
+        era_principal = imagen.es_principal
+
+        if settings.MEDIA_URL in imagen.url_imagen:
+            nombre = imagen.url_imagen.split(settings.MEDIA_URL, 1)[1]
+            try:
+                default_storage.delete(nombre)
+            except Exception:
+                pass
+        imagen.delete()
+
+        if era_principal:
+            siguiente = ImagenProducto.objects.filter(producto_id=producto_id).first()
+            if siguiente:
+                siguiente.es_principal = True
+                siguiente.save(update_fields=["es_principal"])
+
+        return Response(
+            ImagenProductoSerializer(
+                ImagenProducto.objects.filter(producto_id=producto_id), many=True
+            ).data,
+            status=status.HTTP_200_OK,
         )
