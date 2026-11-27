@@ -20,6 +20,7 @@ import ClienteLayout from "./pages/cliente/ClienteLayout";
 import Cotizacion from "./pages/cliente/Cotizacion";
 import MisCotizaciones from "./pages/cliente/MisCotizaciones";
 import Pedidos from "./pages/cliente/Pedidos";
+import MiPerfil from "./pages/cliente/MiPerfil";
 
 import AdminLayout from "./pages/admin/AdminLayout";
 import DashboardAdmin from "./pages/admin/DashboardAdmin";
@@ -76,6 +77,7 @@ function ContenidoApp() {
             <Route path="cotizacion" element={<Navigate to="/cotizacion" replace />} />
             <Route path="mis-cotizaciones" element={<MisCotizaciones />} />
             <Route path="mis-pedidos" element={<Pedidos />} />
+            <Route path="mi-perfil" element={<MiPerfil />} />
           </Route>
 
           <Route

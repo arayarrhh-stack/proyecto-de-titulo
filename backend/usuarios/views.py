@@ -16,7 +16,7 @@ from .verificacion import enviar_correo_verificacion, usuario_desde_token
 from .models import RolUsuario
 from django.shortcuts import get_object_or_404
 
-from .serializers import LoginSerializer, PerfilUsuarioSerializer, RegistroClienteSerializer
+from .serializers import ActualizarPerfilSerializer, LoginSerializer, PerfilUsuarioSerializer, RegistroClienteSerializer
 from .services import anonimizar_cuenta_usuario, registrar_empresa_y_usuario
 
 
@@ -60,6 +60,35 @@ class PerfilUsuarioView(APIView):
         """Retorna los datos del perfil del usuario autenticado."""
         serializer = PerfilUsuarioSerializer(request.user)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def patch(self, request):
+        """Actualiza los datos de contacto y facturación del cliente (RF 004)."""
+        serializer = ActualizarPerfilSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        datos = serializer.validated_data
+        usuario = request.user
+        empresa = usuario.empresa
+
+        campos_empresa = {"razon_social", "direccion", "telefono"}
+        if campos_empresa & datos.keys() and empresa is None:
+            return Response(
+                {"detalle": "Tu cuenta no tiene datos de facturación asociados."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if "nombre" in datos:
+            usuario.first_name = datos["nombre"]
+        if "cargo" in datos:
+            usuario.cargo = datos["cargo"]
+        usuario.save(update_fields=["first_name", "cargo"])
+
+        if empresa is not None:
+            for campo in campos_empresa:
+                if campo in datos:
+                    setattr(empresa, campo, datos[campo])
+            empresa.save()
+
+        return Response(PerfilUsuarioSerializer(usuario).data, status=status.HTTP_200_OK)
 
     def delete(self, request):
         """Ejecuta la supresión y anonimización de datos por la Ley N° 21.719 (HU-06)."""

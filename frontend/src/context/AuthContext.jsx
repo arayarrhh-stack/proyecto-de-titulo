@@ -36,6 +36,7 @@ export function AuthProvider({ children }) {
       .catch(() => {
         // backend apagado: se mantiene la copia guardada
       });
+
     return () => {
       activo = false;
     };
@@ -59,8 +60,13 @@ export function AuthProvider({ children }) {
     }
   }
 
+  function actualizarUsuario(nuevo) {
+    setUsuario(nuevo);
+    guardarUsuario(nuevo);
+  }
+
   return (
-    <AuthContext.Provider value={{ usuario, login, logout }}>
+    <AuthContext.Provider value={{ usuario, login, logout, actualizarUsuario }}>
       {children}
     </AuthContext.Provider>
   );
