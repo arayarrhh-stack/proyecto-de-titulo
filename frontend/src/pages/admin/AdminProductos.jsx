@@ -183,12 +183,12 @@ export default function AdminProductos() {
             <table className="w-full text-sm text-left">
               <thead className="bg-slate-50 text-xs text-slate-500 uppercase border-b border-slate-200">
                 <tr>
-                  <th className="px-5 py-3">Producto</th>
-                  <th className="px-5 py-3">SKU</th>
-                  <th className="px-5 py-3">Categoría</th>
-                  <th className="px-5 py-3">Clase</th>
-                  <th className="px-5 py-3">Ficha</th>
-                  <th className="px-5 py-3 text-right">Acciones</th>
+                  <th className="px-3 sm:px-5 py-3">Producto</th>
+                  <th className="px-5 py-3 hidden md:table-cell">SKU</th>
+                  <th className="px-5 py-3 hidden md:table-cell">Categoría</th>
+                  <th className="px-5 py-3 hidden md:table-cell">Clase</th>
+                  <th className="px-5 py-3 hidden md:table-cell">Ficha</th>
+                  <th className="px-3 sm:px-5 py-3 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -197,7 +197,7 @@ export default function AdminProductos() {
                   const visible = p.activo && p.estadoValidacion === "validada";
                   return (
                     <tr key={p.id} className="hover:bg-slate-50">
-                      <td className="px-5 py-3">
+                      <td className="px-3 sm:px-5 py-3">
                         <div className="flex items-center gap-3">
                           <div className="w-11 h-11 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
                             {p.imagen ? (
@@ -213,13 +213,13 @@ export default function AdminProductos() {
                           <span className="font-bold text-[#0b192c]">{p.nombre}</span>
                         </div>
                       </td>
-                      <td className="px-5 py-3 font-mono text-xs text-slate-600">
+                      <td className="px-5 py-3 font-mono text-xs text-slate-600 hidden md:table-cell">
                         {p.codigo || "S/C"}
                       </td>
-                      <td className="px-5 py-3 text-slate-600">
+                      <td className="px-5 py-3 text-slate-600 hidden md:table-cell">
                         {categorias[p.categoriaId] || "Sin categoría"}
                       </td>
-                      <td className="px-5 py-3">
+                      <td className="px-5 py-3 hidden md:table-cell">
                         {p.ficha?.claseDielectrica ? (
                           <span className="bg-yellow-100 text-yellow-900 text-xs font-bold px-2 py-0.5 rounded">
                             Clase {p.ficha.claseDielectrica}
@@ -228,7 +228,7 @@ export default function AdminProductos() {
                           <span className="text-xs text-slate-400">—</span>
                         )}
                       </td>
-                      <td className="px-5 py-3">
+                      <td className="px-5 py-3 hidden md:table-cell">
                         <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${estado.clase}`}>
                           {estado.texto}
                         </span>
@@ -240,8 +240,8 @@ export default function AdminProductos() {
                             : "No visible en el catálogo"}
                         </p>
                       </td>
-                      <td className="px-5 py-3 text-right">
-                        <div className="inline-flex items-center gap-2">
+                      <td className="px-3 sm:px-5 py-3 text-right">
+                        <div className="flex flex-wrap items-center justify-end gap-2">
                           <button
                             type="button"
                             onClick={() => alternarDestacado(p)}
