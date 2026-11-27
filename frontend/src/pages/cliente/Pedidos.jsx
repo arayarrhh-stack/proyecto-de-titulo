@@ -24,7 +24,9 @@ function Dato({ etiqueta, valor }) {
 
 function AccionesAdmin({ pedido, onListo }) {
   const [abierto, setAbierto] = useState(false);
-  const [datos, setDatos] = useState({});
+  const [datos, setDatos] = useState({
+    direccion_despacho: pedido.direccion_despacho_cliente || "",
+  });
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
 
@@ -48,7 +50,7 @@ function AccionesAdmin({ pedido, onListo }) {
             fecha_entrega: d.fecha_entrega ?? "",
             nombre_receptor: d.nombre_receptor ?? "",
           }
-        : {}
+        : { direccion_despacho: pedido.direccion_despacho_cliente || "" }
     );
     setError("");
     setAbierto(true);

@@ -120,6 +120,7 @@ class SolicitudListCreateView(APIView):
         items = request.data.get("items", [])
         observaciones = request.data.get("observaciones", "")
         canal = request.data.get("canal_origen", CanalOrigen.PORTAL)
+        direccion = request.data.get("direccion_despacho", "")
 
         try:
             solicitud = crear_solicitud_cotizacion(
@@ -127,6 +128,7 @@ class SolicitudListCreateView(APIView):
                 items=items,
                 observaciones=observaciones,
                 canal_origen=canal,
+                direccion_despacho=direccion,
             )
         except (ValidationError, ValueError, TypeError) as exc:
             return Response({"detalle": str(exc)}, status=status.HTTP_400_BAD_REQUEST)

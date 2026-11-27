@@ -24,6 +24,7 @@ function adaptarSolicitud(s) {
     canal: CANALES[s.canal_origen] ?? s.canal_origen,
     estado: estadoDesdeBackend[s.estado] ?? s.estado,
     observaciones: s.observaciones,
+    direccion: s.direccion_despacho,
     productos: s.lineas.map((l) => ({
       id: l.id,
       nombre: l.producto_nombre,
@@ -133,6 +134,13 @@ function AdminCotizaciones() {
                 </li>
               ))}
             </ul>
+
+            {sol.direccion && (
+              <p className="mt-3 text-sm text-slate-500 border-t border-slate-200 pt-3">
+                <span className="font-medium text-slate-600">Dirección de despacho:</span>{" "}
+                {sol.direccion}
+              </p>
+            )}
 
             {sol.observaciones && (
               <p className="mt-3 text-sm text-slate-500 border-t border-slate-200 pt-3">
